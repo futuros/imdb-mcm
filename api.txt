@@ -1,0 +1,41 @@
+Add/remove a single movie:
+
+http://www.imdb.com/list/_ajax/edit
+
+postdata:
+
+{name}:{value} // this is random for every account, see below how to obtain this data
+const:tt0000000
+list_id: xxxxxxx // unique id for the list
+ref_tag: title
+action:delete // for a delete action
+
+
+
+----
+
+Get name:value for actions
+
+POSTDATA:
+/list/_ajax?watchlist_has
+consts[]: tt0000000 // could be any valid ttID
+
+RESPONSE:
+json formatted
+extra: {"value":xxxx, "name":xxxx}
+----
+
+get all lists
+http://www.imdb.com/user/urXXXXXXXX/lists
+need to parse the html table for id's
+
+----
+
+get movies from lists
+csv formatted lists
+http://www.imdb.com/list/export?list_id=XXXXXXXX&author_id=urXXXXXXXX
+---
+
+get unique user account code: urXXXXXX
+???
+
