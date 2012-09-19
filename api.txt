@@ -15,6 +15,10 @@ action:delete // for a delete action
 ----
 
 Get name:value for actions
+These values are use in the action calls to 'validate' the account
+We should obtain these on first load of the script.
+Maybe they change every so often then we need to check for these more often.
+Mine currently are "value":"0c3*","name":"49e6*"
 
 POSTDATA:
 /list/_ajax?watchlist_has
@@ -39,3 +43,8 @@ http://www.imdb.com/list/export?list_id=XXXXXXXX&author_id=urXXXXXXXX
 get unique user account code: urXXXXXX
 ???
 
+
+---
+The api calls for actions no longer need control code for the category ids so we no longer need to save those.
+They were currently stored on a per movie per category basis.
+movieid-voteint-categoryid:controlid-categoryid2:controlid2-etc
