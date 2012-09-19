@@ -4,22 +4,30 @@
 // @description   	Improvements for IMDB My Movies. Now you can REALLY use the imdb page to manage your Must-See lists and collections 
 // @copyright		2008+, Futuros
 // @license 		Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
-// @version       	2.1.3
+// @version       	3.0.0
 // @date		2010-05-13
 // @include       	http://*imdb.com/*
 // @include       	http://*imdb.de/*
 // @exclude       	http://i.imdb.com/*
 // @exclude       	http://*imdb.com/images/*
 // @exclude       	http://*imdb.de/images/*
+// @grant			GM_getValue
+// @grant			GM_setValue
+// @grant			GM_openInTab
+// @grant			GM_addStyle
+// @grant			GM_xmlhttpRequest
+// @grant			GM_registerMenuCommand
 // ==/UserScript==
 
 var Script = {
 	name:    	'IMDb Movie Collection Manager',
-	version:	'2.1.3',
+	version:	'3.0.0',
 	id:		36797
 };
 
 /* Changelog:
+3.0.0 ()
+	- Fix: 		Make the script work again with the new imdb layout and movie lists
 2.1.3 (2010.05.13)
 	- Fix: 		Add extra debug level for better diagnostics
 	- Fix:		More feedback in notification window when rebuilding cache
@@ -140,8 +148,9 @@ var CONFIG = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		level: 0,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
-		popup: false		// show notifications when something gets deleted or updated 
+		level: 3,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
+		popup: true,		// show notifications when something gets deleted or updated 
+		test: 1				// use test data instead of real data. 
 }	};
 
 var IMAGES = {
@@ -676,6 +685,10 @@ function MovieList(){
 	  * Load the stored value
 	  */
 	this.load = function(){
+		if(CONFIG.debug.test){
+			this.toArray('0278090-1-2:2');
+			return;
+		}
 		var stored = GM_getValue('imdb+_'+this.name); //read from browser
 		if(stored != undefined){		
 			this.toArray(stored);
@@ -890,6 +903,7 @@ function MovieObj(){
 
 /*
  * Object: Used to manage the movie list
+ * keeps all the movie lists in an array with key:value is movielistid:name
  */
 function CategoryList(){
 	this.string = "";
@@ -901,6 +915,11 @@ function CategoryList(){
 	  * Get the stored value
 	  */
 	this.get = function(){
+		if(CONFIG.debug.test){
+			this.string = '2-test_category';
+			this.array = this.toArray();
+			return;
+		}
 		var stored = GM_getValue(this.name); //read from browser
 		if(stored != undefined){		
 			this.string = stored;
@@ -1018,6 +1037,7 @@ function Page(){
 		h1s = document.getElementsByTagName('h1');
 		if(h1s.length==1){
 			this.header=h1s[0];
+			l('We found a header: '+this.header);
 			return true;
 		} else {
 			e('(line:801) no header found on page with type title');
@@ -1222,11 +1242,11 @@ function initScript(step){
 		}
 		appendCategoryLinks(page.header, page.movie);
 		l('Adding category menu to the title page', 2);
-		if(!(actionBox = document.getElementById('action-box'))){e('(line:1190) Action-box (in the left menu on IMDb could not be found. Could not add categories menu');return false;}
+		if(!(sideBar = document.getElementById('maindetails_sidebar_bottom'))){e('(line:1237) maindetails_sidebar_bottom could not be found. Could not add categories menu');return false;}
 		var catDiv = document.createElement('div');
-		catDiv.className = 'imcm_catlist';	
+		catDiv.className = 'imcm_catlist aux-content-widget-2';	
 		catDiv.appendChild(createCategoriesMenu(page.movie));
-		actionBox.parentNode.insertBefore(catDiv,actionBox.nextSibling);
+		sideBar.insertBefore(catDiv,sideBar.firstChild);
 	} 
 	/* Any page except of My movies page: Change the links on the page */		
 	if(movies.array.length==0 || categories.array.length==0)return;
