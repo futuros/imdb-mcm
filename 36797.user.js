@@ -4,22 +4,30 @@
 // @description   	Improvements for IMDB My Movies. Now you can REALLY use the imdb page to manage your Must-See lists and collections 
 // @copyright		2008+, Futuros
 // @license 		Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
-// @version       	2.1.3
+// @version       	3.0.0
 // @date		2010-05-13
 // @include       	http://*imdb.com/*
 // @include       	http://*imdb.de/*
 // @exclude       	http://i.imdb.com/*
 // @exclude       	http://*imdb.com/images/*
 // @exclude       	http://*imdb.de/images/*
+// @grant			GM_getValue
+// @grant			GM_setValue
+// @grant			GM_openInTab
+// @grant			GM_addStyle
+// @grant			GM_xmlhttpRequest
+// @grant			GM_registerMenuCommand
 // ==/UserScript==
 
 var Script = {
 	name:    	'IMDb Movie Collection Manager',
-	version:	'2.1.3',
+	version:	'3.0.0',
 	id:		36797
 };
 
 /* Changelog:
+3.0.0 ()
+	- Fix: 		Make the script work again with the new imdb layout and movie lists
 2.1.3 (2010.05.13)
 	- Fix: 		Add extra debug level for better diagnostics
 	- Fix:		More feedback in notification window when rebuilding cache
