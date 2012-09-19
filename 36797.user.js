@@ -148,8 +148,9 @@ var CONFIG = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		level: 0,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
-		popup: false		// show notifications when something gets deleted or updated 
+		level: 3,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
+		popup: true,		// show notifications when something gets deleted or updated 
+		test: 1				// use test data instead of real data. 
 }	};
 
 var IMAGES = {
@@ -684,6 +685,10 @@ function MovieList(){
 	  * Load the stored value
 	  */
 	this.load = function(){
+		if(CONFIG.debug.test){
+			this.toArray('0278090-1-2:2');
+			return;
+		}
 		var stored = GM_getValue('imdb+_'+this.name); //read from browser
 		if(stored != undefined){		
 			this.toArray(stored);
@@ -898,6 +903,7 @@ function MovieObj(){
 
 /*
  * Object: Used to manage the movie list
+ * keeps all the movie lists in an array with key:value is movielistid:name
  */
 function CategoryList(){
 	this.string = "";
@@ -909,6 +915,11 @@ function CategoryList(){
 	  * Get the stored value
 	  */
 	this.get = function(){
+		if(CONFIG.debug.test){
+			this.string = '2-test_category';
+			this.array = this.toArray();
+			return;
+		}
 		var stored = GM_getValue(this.name); //read from browser
 		if(stored != undefined){		
 			this.string = stored;
@@ -1230,11 +1241,11 @@ function initScript(step){
 		}
 		appendCategoryLinks(page.header, page.movie);
 		l('Adding category menu to the title page', 2);
-		if(!(actionBox = document.getElementById('action-box'))){e('(line:1190) Action-box (in the left menu on IMDb could not be found. Could not add categories menu');return false;}
+		if(!(sideBar = document.getElementById('maindetails_sidebar_bottom'))){e('(line:1237) maindetails_sidebar_bottom could not be found. Could not add categories menu');return false;}
 		var catDiv = document.createElement('div');
-		catDiv.className = 'imcm_catlist';	
+		catDiv.className = 'imcm_catlist aux-content-widget-2';	
 		catDiv.appendChild(createCategoriesMenu(page.movie));
-		actionBox.parentNode.insertBefore(catDiv,actionBox.nextSibling);
+		sideBar.insertBefore(catDiv,sideBar.firstChild);
 	} 
 	/* Any page except of My movies page: Change the links on the page */		
 	if(movies.array.length==0 || categories.array.length==0)return;
