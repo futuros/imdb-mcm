@@ -917,12 +917,10 @@ function MovieList(){
 		return string;
 	}
 }
-/*
- * @TODO change string representation of movieObj to:
- * tid-vote-category1-category2
- */
+
 function MovieObj(){
-	this.category = []; 
+	this.category = []; // catid controlid pair
+	
 	if(arguments.length==0)return false;
 	if(typeof arguments[0] == 'string'){ // construct a new movieObj based on a string: tid-vote-category1-category2-categoryN
 		arr = arguments[0].split("-");
@@ -930,7 +928,7 @@ function MovieObj(){
 		this.vote = parseInt(arr[1]);		
 		var i=arr.length;
 		while(i>2){
-			this.category.push(arr[i-1]);
+			this.category.push(arr[i-1].split(':'));
 			i--;
 		}
 	} else {
@@ -938,7 +936,7 @@ function MovieObj(){
 		obj = arguments[0];
 		this.id = arguments[0].tid.replace("tt","");
 		this.vote = arguments[0].vote || 0;
-		if(obj.categoryid)	this.category.push(obj.categoryid);
+		if(obj.categoryid && obj.controlid)	this.category.push([obj.categoryid,obj.controlid]);
 	}
 
 	this.isActive = function(){
@@ -948,7 +946,7 @@ function MovieObj(){
 	this.hasCategory = function(id){
 		if(this.category.length<=0)return false;
 		for(var i=0;i<this.category.length;i++){
-			if(this.category[i]==id)return true;
+			if(this.category[i][0]==id)return true;
 		}
 		return false;
 	}
@@ -970,13 +968,13 @@ function MovieObj(){
 	}
 	
 	this.addCategory = function(categoryId, controlId){
-		this.category.push(categoryId);
+		this.category.push([categoryId,controlId]);
 	}
 	
 	this.deleteCategory = function(id){
 		if(this.category.length<=0)return false;
 		for(var i=0;i<this.category.length;i++){
-			if(this.category[i]==id){
+			if(this.category[i][0]==id){
 				this.category.splice(i,1);
 				return true;
 			}
@@ -991,17 +989,27 @@ function MovieObj(){
 	}
 
 	this.categoryList = function(){
-		/*var catList = [];
+		var catList = [];
 		for(var i=0;i<this.category.length;i++){
 			catList.push(this.category[i][0]);
-		}*/
-		return this.category.sort(); //why sort?
+		}
+		return catList.sort();
 	}
 	
 	this.clearCategories = function(){
 		this.category = [];
 	}
 	
+	this.getControlId = function(category){
+		for(var i=0;i<this.category.length;i++){
+			if(this.category[i][0]==category){
+				return this.category[i][1];
+			}
+		}
+		e('(line:833) Failed to get control id for movie:'+this.id+' and category:'+category);
+		return false;
+	}
+
 	this.equals = function(obj){
 		if(obj instanceof MovieObj){
 			return this.id === obj.id;
@@ -1014,7 +1022,7 @@ function MovieObj(){
 		var string = [this.id,this.vote];
 		if(this.category.length>0){
 			for(var i=0;i<this.category.length;i++){
-				string.push(this.category[i]);
+				string.push(this.category[i].join(':'));
 			}
 		}
 		return string.join('-');
