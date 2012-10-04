@@ -266,9 +266,10 @@ function menuClickHandler(ev){
 	}
 	
 	if(movie.hasCategory(catid)){
-		executeChange(movie, {'type': 'delete', 'old':catid, 'tid':movie.id, 'cid': movie.getControlId(catid)}, function(responseDetails){ notification.debug('Movie deleted', 2000);}, node);	
+		l('delete movie');
+		executeChange(movie, {'type': 'delete', 'listid':catid, 'tid':movie.id}, function(responseDetails){ notification.debug('Movie deleted', 2000);}, node);	
 	} else {
-		executeChange(movie, {'type': 'add', 'new':catid, 'tid':movie.id},	function(responseDetails){notification.debug('Movie added', 2000);}, node);
+		executeChange(movie, {'type': 'add', 'listid':catid, 'tid':movie.id},	function(responseDetails){notification.debug('Movie added', 2000);}, node);
 	}
 	ev.preventDefault();
 }
@@ -364,7 +365,7 @@ function updateCategoryLinks(node,movie){
 					tag.addEventListener('click', function(ev){ev.preventDefault();window.location='http://www.imdb.com/mymovies/list?l='+catid;}, false);
 				} else {
 					tag.title = 'Delete movie from category: '+cname;
-					tag.addEventListener('click', function(ev){var node = ev.currentTarget; if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){executeChange(movie, {'type': 'delete', 'old':node.getAttribute('catid'), 'tid':movie.id, 'cid': movie.getControlId(node.getAttribute('catid'))}, function(responseDetails){ notification.debug('Movie deleted', 2000);})}ev.preventDefault();}, false); 
+					tag.addEventListener('click', function(ev){var node = ev.currentTarget; if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){executeChange(movie, {'type': 'delete', 'listid':node.getAttribute('catid'), 'tid':movie.id }, function(responseDetails){ notification.debug('Movie deleted', 2000);})}ev.preventDefault();}, false); 
 				}
 				tag.innerHTML = cname;
 			}
@@ -422,24 +423,25 @@ function updateStatus(movie){
 function executeChange(movie, action, callback, menu){
 	// callback function
 	cb = function(response){
+		json = JSON.parse(response.responseText);
 		if(response.status!=200)return false;
 		if(action.type=="delete"){
-			rx = new RegExp("<input type=\"checkbox\" name=\"e\" value=\"(\\\d+):"+movie.id+"\"","i");
-			if(!rx.test(response.responseText)){
+			if(json.status=='200'){
+				l('delete: '+movie+' from '+action.listid);
+				movie.deleteCategory(action.listid);
+				deleted=true;
+			}else {
 				l('failed to delete movie');
 				return false;
 			}
-			l('delete: '+movie+' from '+action.old);
-			movie.deleteCategory(action.old);
-			deleted=true;
 		} else {
-			rx = new RegExp("\\/popup\\/mmnote\\?id=(\\\d+):"+movie.id, "i");
-			m = response.responseText.match(rx);
-			l('match: '+m);
-			if(!m){l('failed to add movie');return false;}
-			cid=m[1];
-			l('add: '+movie+' to '+action.new+':'+cid);
-			movie.addCategory(action.new, cid);
+			if(json.status=='200'){
+				l('succesfully added: '+movie+' to '+action.listid);
+				movie.addCategory(action.listid);
+			} else {
+				e('failed to add movie to:'+ action.listid);
+				return false;
+			}
 		}
 		movies.save();
 		if(menu && menu!=false){
@@ -456,16 +458,18 @@ function executeChange(movie, action, callback, menu){
 	}; // end of callback function
 	switch(action.type){
 		case 'add':
-			url = 'http://www.imdb.com/mymovies/list';
-			data = 'l='+action.new+'&add='+movie.id+'&a=1';
+			IMDB.actionAddMovie(movie,action.listid,cb);
+			//url = 'http://www.imdb.com/mymovies/list';
+			//data = 'l='+action.new+'&add='+movie.id+'&a=1';
 		break;
 		case 'delete':
-			data = 'l='+action.old+'&e='+action.cid+':'+movie.id+'&to='+categories.getId('Recycle Bin')+'&action=Move&a=1';
-			url = 'http://www.imdb.com/mymovies/list';
+			IMDB.actionDeleteMovie(movie,action.listid,cb);
+			//data = 'l='+action.old+'&e='+action.cid+':'+movie.id+'&to='+categories.getId('Recycle Bin')+'&action=Move&a=1';
+			//url = 'http://www.imdb.com/mymovies/list';
 		break;
 	}
-	l('xhr: '+action.type+': '+url+'?'+data,3);
-	postXhr(url,data,cb);
+//	l('xhr: '+action.type+': '+url+'?'+data,3);
+//	postXhr(url,data,cb);
 }
 
 function postXhr(url, data, cb){
@@ -638,7 +642,7 @@ function cleanup(){
 var IMDB = {
 	prefix: 'http://www.imdb.com/',	
 	authorId:'ur13251114',
-	check: {value:'0c36',name:'49e6c'},
+	check: {name:'49e6c',value:'0c36'},
 	
 	/*
 	 * Temporary function to test the IMDB api in isolation
@@ -707,8 +711,9 @@ var IMDB = {
 	 * @TODO: we need a category id in here
 	 */
 	parseMovieList: function(response){
+		console.debug(response);
 		var moviesFound = 0;
-		var categoryId = null; // we have to get the movie list id in here
+		var categoryId = '36jUKXehQa8'; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
 			movies.add({tid: lineObj.const, categoryid: categoryId});
 			moviesFound = index+1;
@@ -721,8 +726,18 @@ var IMDB = {
 	parseAuthorId: function(response){},
 	getSecurityCheck: function getSecurityCheck(){},
 	parseSecurityCheck: function(response){},
-	actionAddMovie: function(){},
-	actionDeleteMovie: function(){},
+	actionAddMovie: function(movie,listId,callback){
+		l('add movie:'+movie.id+' : '+listId);
+		let data = '?'+IMDB.check.name+'='+IMDB.check.value+'&const=tt'+movie.id+'&list_id='+listId+'&ref_tag=title';
+		IMDB.xhr(IMDB.prefix+'list/_ajax/edit', data, callback);
+	},
+	actionDeleteMovie: function(){
+		// same as addmovie, but with action:delete
+		l('delete movie:'+movie.id+' : '+category);
+		let data = '?action=delete&'+IMDB.check.name+'='+IMDB.check.value+'&const=tt'+movie.id+'&list_id='+listId+'&ref_tag=title';
+		IMDB.xhr(IMDB.prefix+'list/_ajax/edit', data, callback);
+
+	},
 	
 	/*
 	 * @TODO improve function based on http://code.google.com/p/jquery-csv/source/browse/src/jquery.csv.js
@@ -948,26 +963,28 @@ function MovieList(){
 		return string;
 	}
 }
-
+/*
+ * @TODO change string representation of movieObj to:
+ * tid-vote-category1-category2
+ */
 function MovieObj(){
-	this.category = []; // catid controlid pair
-	
+	this.category = []; 
 	if(arguments.length==0)return false;
-	if(typeof arguments[0] == 'string'){
+	if(typeof arguments[0] == 'string'){ // construct a new movieObj based on a string: tid-vote-category1-category2-categoryN
 		arr = arguments[0].split("-");
-		this.id = arr[0];
+		this.id = arr[0].replace("tt","");
 		this.vote = parseInt(arr[1]);		
 		var i=arr.length;
 		while(i>2){
-			this.category.push(arr[i-1].split(':'));
+			this.category.push(arr[i-1]);
 			i--;
 		}
 	} else {
-		//from object {tid, categoryid, controlid}, vote
+		//from object {tid:, categoryid, vote}
 		obj = arguments[0];
-		this.id = arguments[0].tid;
+		this.id = arguments[0].tid.replace("tt","");
 		this.vote = arguments[0].vote || 0;
-		if(obj.categoryid && obj.controlid)	this.category.push([obj.categoryid,obj.controlid]);
+		if(obj.categoryid)	this.category.push(obj.categoryid);
 	}
 
 	this.isActive = function(){
@@ -977,7 +994,7 @@ function MovieObj(){
 	this.hasCategory = function(id){
 		if(this.category.length<=0)return false;
 		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==id)return true;
+			if(this.category[i]==id)return true;
 		}
 		return false;
 	}
@@ -999,13 +1016,13 @@ function MovieObj(){
 	}
 	
 	this.addCategory = function(categoryId, controlId){
-		this.category.push([categoryId,controlId]);
+		this.category.push(categoryId);
 	}
 	
 	this.deleteCategory = function(id){
 		if(this.category.length<=0)return false;
 		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==id){
+			if(this.category[i]==id){
 				this.category.splice(i,1);
 				return true;
 			}
@@ -1013,33 +1030,24 @@ function MovieObj(){
 		return false;	
 	}
 
-	this.moveCategory = function(oldCategoryId, newCategoryId, controlId){
-		this.addCategory(newCategoryId, controlId);
+	this.moveCategory = function(oldCategoryId, newCategoryId){
+		e('Call to deprecated function MovieObj.moveCategory');
+		this.addCategory(newCategoryId);
 		this.deleteCategory(oldCategoryId);
 	}
 
 	this.categoryList = function(){
-		var catList = [];
+		/*var catList = [];
 		for(var i=0;i<this.category.length;i++){
 			catList.push(this.category[i][0]);
-		}
-		return catList.sort();
+		}*/
+		return this.category.sort(); //why sort?
 	}
 	
 	this.clearCategories = function(){
 		this.category = [];
 	}
 	
-	this.getControlId = function(category){
-		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==category){
-				return this.category[i][1];
-			}
-		}
-		e('(line:833) Failed to get control id for movie:'+this.id+' and category:'+category);
-		return false;
-	}
-
 	this.equals = function(obj){
 		if(obj instanceof MovieObj){
 			return this.id === obj.id;
@@ -1052,7 +1060,7 @@ function MovieObj(){
 		var string = [this.id,this.vote];
 		if(this.category.length>0){
 			for(var i=0;i<this.category.length;i++){
-				string.push(this.category[i].join(':'));
+				string.push(this.category[i]);
 			}
 		}
 		return string.join('-');
@@ -1395,6 +1403,7 @@ function initScript(step){
 	//STEP 4:
 	if (page.initTitle()){ 	
 	/* Title page */	
+		console.debug(page.movie);
 		// when the user votes the page should be updated
 		if(vu = document.getElementById('voteuser')){
 			vu.addEventListener('DOMNodeInserted',  function(){setTimeout(saveVote,0);}, true); // settimeout is required due to a bug in greasemonkey
