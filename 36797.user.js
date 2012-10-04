@@ -101,14 +101,13 @@ var Script = {
 
 // Configuration
 var CONFIG = {
-	cleanup: 10,			// Should automatically empty recycle bin when more then this many items in recycle bin. 0 = off
 	header: {				// Configuration options for the title name on the movie title page
 		highlight: {
 			show: true,			// Highlight the title name if in menu or voted for
 			color: {
 				background: 'silver',	// Background color of the highlight
 				text: '',				// not implemented
-		}	},
+		},	},
 		vote: true,			// Show what you have voted for the movie
 		labels: {
 			color: {
@@ -116,9 +115,9 @@ var CONFIG = {
 				text: '#606060',// text color of the labels
 			},
 			show: true,			// show labels on top of the page
-			goto: true,			// use links to go to the mymovies lists instead of deleting from that category
-			confirmation: true	// ask for confirmation when deleting a category with a link; NB: only used when goto:false
-	}	},
+			redirect: true,			// use links to go to the mymovies lists instead of deleting from that category
+			confirmation: true,	// ask for confirmation when deleting a category with a link; NB: only used when goto:false
+	},	},
 	links: {				// Configuration options for the links
 		pulldown: true, 		// append a pulldown menu with categories to every movie link
 		highlight: {
@@ -134,7 +133,7 @@ var CONFIG = {
 				text: '#606060',// text color of the labels
 			},
 			show: true,			// show labels after the links
-			goto: false,		// use links to go to the mymovies lists instead of deleting from that category
+			redirect: false,		// use links to go to the mymovies lists instead of deleting from that category
 			confirmation: true	// ask for confirmation when deleting a category with a link; NB: only used when goto:false
 	}	},
 	vote: {
@@ -187,11 +186,10 @@ var notification; // obj to show notifications
 var page; // object with info about the current page
 var activePulldown;
 var pulldowns =1000;
-var deleted = false;
 
-l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);}
-e = function(v){if(typeof console=='object'){console.error(v);}else{GM_log('[error] '+v);}}
-log = function(v){if(typeof console=='object'){console.info(v);}else{GM_log(v);}}
+l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);};
+e = function(v){if(typeof console=='object'){console.error(v);}else{GM_log('[error] '+v);}};
+log = function(v){if(typeof console=='object'){console.info(v);}else{GM_log(v);}};
 
 /*
  * Get the movie info based on a address string
@@ -264,13 +262,7 @@ function menuClickHandler(ev){
 		ev.preventDefault();
 		return false;
 	}
-	
-	if(movie.hasCategory(catid)){
-		l('delete movie');
-		executeChange(movie, {'type': 'delete', 'listid':catid, 'tid':movie.id}, function(responseDetails){ notification.debug('Movie deleted', 2000);}, node);	
-	} else {
-		executeChange(movie, {'type': 'add', 'listid':catid, 'tid':movie.id},	function(responseDetails){notification.debug('Movie added', 2000);}, node);
-	}
+	IMDB.editMovieAction(movie,catid,node);
 	ev.preventDefault();
 }
 
@@ -342,14 +334,15 @@ function updateCategoryLinks(node,movie){
 		
 		// internal function to append label
 		appendLabel = function(nd, type, value){
+			var tag;
 			if(type=='vote'){
-				var tag = document.createElement('span');	
+				tag = document.createElement('span');	
 				addClassName(tag, 'imcm_vote imcm_label');
 				(value >= 8) ? addClassName(tag, 'imcm_high') : ((value <5) ? addClassName(tag, 'imcm_low') : addClassName(tag, 'imcm_medium'));
 
 				tag.innerHTML = value;
 			} else {
-				var tag = document.createElement('a');	
+				tag = document.createElement('a');	
 				if(isHeader){
 					addClassName(tag, 'imcm_label imcm_label_header');
 				} else {
@@ -360,22 +353,30 @@ function updateCategoryLinks(node,movie){
 				var cname = categories.getName(catid);		
 				tag.setAttribute("href",'#'+catid);
 				tag.setAttribute("catid", catid);
-				if(CFG.labels.goto){
+				if(CFG.labels.redirect){
 					tag.title = 'Go to the movie list for category: '+cname;
-					tag.addEventListener('click', function(ev){ev.preventDefault();window.location='http://www.imdb.com/mymovies/list?l='+catid;}, false);
+					tag.addEventListener('click', function(ev){
+							ev.preventDefault();
+							window.location='http://www.imdb.com/mymovies/list?l='+catid;
+					}, false);
 				} else {
 					tag.title = 'Delete movie from category: '+cname;
-					tag.addEventListener('click', function(ev){var node = ev.currentTarget; if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){executeChange(movie, {'type': 'delete', 'listid':node.getAttribute('catid'), 'tid':movie.id }, function(responseDetails){ notification.debug('Movie deleted', 2000);})}ev.preventDefault();}, false); 
+					tag.addEventListener('click', function(ev){
+						var node = ev.currentTarget;
+						if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){
+							IMDB.editMovieAction(movie,node.getAttribute('catid')); 
+						}
+					},false);
 				}
 				tag.innerHTML = cname;
 			}
 			sibling=node.nextSibling;
 			if(sibling && hasClassName(sibling, 'imcm_pulldown_wrapper'))sibling=sibling.nextSibling;
 			node.parentNode.insertBefore(tag, sibling);
-		} // end of function
+		}; // end of function
 		
 		if(CFG.labels.show && movie.category.length>0){
-			for(j=0;j<movie.category.length;j++){
+			for(var j=0; j<movie.category.length;j++){
 				this.appendLabel(node, 'cat', movie.category[j][0]);
 			}
 		}
@@ -399,13 +400,13 @@ function updateCategoryLinks(node,movie){
 function updateStatus(movie){
 	l('Updating all links and headers for movie: '+movie.id,2);
 	movieNodes = getElementsByClassName('movie'+movie.id, null, document);
-	for(i=0;i<movieNodes.length;i++){
+	for(var i=0;i<movieNodes.length;i++){
 		node = movieNodes[i];
 		if(hasClassName(node, 'label_node')){
 			updateCategoryLinks(node,movie);
 		} else if(hasClassName(node, 'imcm_menu')){
 			elms = node.getElementsByTagName('li');
-			for (h=0;h<elms.length;h++){
+			for (var h=0;h<elms.length;h++){
 				if(movie.hasCategory(elms[h].getAttribute('catid'))){
 					addClassName(elms[h], 'checked');
 				} else {
@@ -416,72 +417,6 @@ function updateStatus(movie){
 	}	
 	setTimeout(function(){if(activePulldown){addClassName(activePulldown,'imcm_hide');}},500);
 }	
-
-/*
- * Creates an ajax call for the action
- */
-function executeChange(movie, action, callback, menu){
-	// callback function
-	cb = function(response){
-		json = JSON.parse(response.responseText);
-		if(response.status!=200)return false;
-		if(action.type=="delete"){
-			if(json.status=='200'){
-				l('delete: '+movie+' from '+action.listid);
-				movie.deleteCategory(action.listid);
-				deleted=true;
-			}else {
-				l('failed to delete movie');
-				return false;
-			}
-		} else {
-			if(json.status=='200'){
-				l('succesfully added: '+movie+' to '+action.listid);
-				movie.addCategory(action.listid);
-			} else {
-				e('failed to add movie to:'+ action.listid);
-				return false;
-			}
-		}
-		movies.save();
-		if(menu && menu!=false){
-			if(action.type=='add'){
-				addClassName(menu, 'checked');
-			} else {
-				removeClassName(menu, 'checked');			
-			}
-			removeClassName(menu, 'busy');
-		}
-		updateStatus(movie);
-		cleanup();
-		if(callback)callback(true);
-	}; // end of callback function
-	switch(action.type){
-		case 'add':
-			IMDB.actionAddMovie(movie,action.listid,cb);
-			//url = 'http://www.imdb.com/mymovies/list';
-			//data = 'l='+action.new+'&add='+movie.id+'&a=1';
-		break;
-		case 'delete':
-			IMDB.actionDeleteMovie(movie,action.listid,cb);
-			//data = 'l='+action.old+'&e='+action.cid+':'+movie.id+'&to='+categories.getId('Recycle Bin')+'&action=Move&a=1';
-			//url = 'http://www.imdb.com/mymovies/list';
-		break;
-	}
-//	l('xhr: '+action.type+': '+url+'?'+data,3);
-//	postXhr(url,data,cb);
-}
-
-function postXhr(url, data, cb){
-	GM_xmlhttpRequest({
-		method : 'POST',
-		url    : url,
-		headers: {'Content-type':'application/x-www-form-urlencoded',
-					 'Cookie': document.cookie},
-		data   : encodeURI(data),
-		onload : cb,
-	});
-}
 
 function saveVote(evt){
 	vu = document.getElementById('voteuser');
@@ -583,7 +518,7 @@ function requestVotingHistory(command){
 		method : 'GET',
 		url    : 'http://www.imdb.com/mymovies/list?votehistory&a=1',
 		onload : function(responseDetails) { processVoteHistory(responseDetails.responseText, command);},
-		onerror: function(responseDetails) { e('failed to get vote history');notification.write('Failed to update vote history', 3000)}
+		onerror: function(responseDetails) { e('failed to get vote history');notification.write('Failed to update vote history', 3000);}
 	});
 }
 
@@ -616,22 +551,6 @@ function requestUsername(){
 	});
 }
 
-function cleanup(){
-	if(CONFIG.cleanup && deleted && !page.isType(page.TYPE.external)){
-		// only 1 in 10 times to save server
-		if(Math.random()>0.1)return false;
-		l('Send Ajax request to delete movies from recycle bin',2);
-		GM_xmlhttpRequest({
-			method : 'POST',
-			url    : 'http://www.imdb.com/mymovies/list',
-			headers: {'Content-type':'application/x-www-form-urlencoded', 'Cookie': document.cookie},
-			data   : encodeURI('l='+categories.getId('Recycle Bin')+'&action=Empty+Recycle+Bin'),
-			onload : function(responseDetails) { l('emptied the recycle-bin',1);deleted=false; },
-			onerror: function(responseDetails) { e('failed to empty the recycle bin');}
-		});
-	}
-}
-
 /*
  * IMDB API object
  * This object is used for interaction with the IMDB website through AJAX
@@ -659,9 +578,11 @@ var IMDB = {
 	 * Requests the votes in a csv format
 	 */
 	getVotes: function getVotes(){
-		if(!IMDB.authorId) throw authorIdUnknownException;
-		url = IMDB.prefix+'list/export?list_id=ratings&author_id='+IMDB.authorId;
-		IMDB.xhr(url);
+		if(!IMDB.authorId) throw "authorIdUnknownException";
+		var request = {url:'list/export', method:'GET'};
+		request.param = {'list_id':'ratings','author_id':IMDB.authorId};
+		l(request);
+		IMDB.xhr(request);
 	},
 	/*
 	 * Parse the response from the getVotes call
@@ -677,7 +598,9 @@ var IMDB = {
 		movies.save();
 	},
 	getLists: function getLists(){
-		IMDB.xhr(IMDB.prefix+'list/_ajax/wlb_dropdown','tconst=tt0278090');
+		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
+		request.param = {'tconst':'tt0278090'};
+		IMDB.xhr(request);
 	},
 	parseLists: function(response){
 		let cats = [];
@@ -705,15 +628,16 @@ var IMDB = {
 		});
 	},
 	getMovieList: function getMovieList(listId){
-		IMDB.xhr(IMDB.prefix+'list/export?list_id='+listId+'&author_id='+IMDB.authorId);
+		let request = {url: 'list/export', method:'GET'};
+		request.param = {'list_id':listId, 'author_id':IMDB.authorId};
+		IMDB.xhr(request);
 	},
 	/*
-	 * @TODO: we need a category id in here
+	 * 
 	 */
-	parseMovieList: function(response){
-		console.debug(response);
+	parseMovieList: function(response,request){
 		var moviesFound = 0;
-		var categoryId = '36jUKXehQa8'; // we have to get the movie list id in here
+		var categoryId = request.param.list_id; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
 			movies.add({tid: lineObj.const, categoryid: categoryId});
 			moviesFound = index+1;
@@ -721,25 +645,87 @@ var IMDB = {
 		movies.save();
 		l(moviesFound+' new movies found. Total is now: '+movies.array.length);
 	},
+	editMovieAction: function(movie,list_id,handle){
+		let request = {url:'list/_ajax/edit'};
+		request.param = {
+				'const':'tt'+movie.id,
+				'list_id':list_id,
+				'ref_tag':'title',
+		};
+		if(movie.hasCategory(list_id)){
+			request.param.action='delete';
+		}
+		request.param[IMDB.check.name]=IMDB.check.value;
+		request.movie = movie;
+		if(handle)request.handle = handle;
+		request.callback = IMDB.editMovieResult;
+		IMDB.xhr(request);
+	},
+	editMovieResult: function(response, request){
+		json = JSON.parse(response.responseText);
+		if(json.status=='200'){
+			if(request.param.action=='delete'){ //succesfully deleted
+				request.movie.deleteCategory(request.param.list_id);
+			} else { //succesfully added
+				request.movie.addCategory(request.param.list_id);
+			}
+			movies.save();
+			if(request.handle){
+				if(request.param.action=='add' && request.movie.hasCategory(request.param.list_id)){
+					addClassName(request.handle, 'checked');
+				} else if(request.param.action==null && !request.movie.hasCategory(request.param.list_id)){
+					removeClassName(request.handle, 'checked');			
+				}
+			}
+			updateStatus(movie);
+		}
+		removeClassName(request.handle, 'busy');
+	},
 	/* yet to implement */
 	getAuthorId: function getAuthorId(){},
 	parseAuthorId: function(response){},
 	getSecurityCheck: function getSecurityCheck(){},
 	parseSecurityCheck: function(response){},
-	actionAddMovie: function(movie,listId,callback){
-		l('add movie:'+movie.id+' : '+listId);
-		let data = '?'+IMDB.check.name+'='+IMDB.check.value+'&const=tt'+movie.id+'&list_id='+listId+'&ref_tag=title';
-		IMDB.xhr(IMDB.prefix+'list/_ajax/edit', data, callback);
-	},
-	actionDeleteMovie: function(){
-		// same as addmovie, but with action:delete
-		l('delete movie:'+movie.id+' : '+category);
-		let data = '?action=delete&'+IMDB.check.name+'='+IMDB.check.value+'&const=tt'+movie.id+'&list_id='+listId+'&ref_tag=title';
-		IMDB.xhr(IMDB.prefix+'list/_ajax/edit', data, callback);
-
-	},
 	
 	/*
+	 * Ajax call to imdb website
+	 * 
+	 */
+	xhr: function(request){
+		l('call xhr');
+		console.log(request);
+		if(!request.callback){
+			l('no request');
+			let callbackName = 'parse'+IMDB.xhr.caller.name.substr(3);
+			request.callback = IMDB[callbackName];
+		}
+		l(request.callback);
+		if(typeof request.callback != 'function') throw "invalidCallbackException";
+		request.onload = function(response){request.callback(response,request);}; // sends the response and request to the callback function
+		l('callbacl cmplete xhr');
+		
+		request.url = IMDB.prefix+request.url;
+		l(request.url);
+		if(request.param)request.data = IMDB.serialize(request.param);
+		l(request.data);
+		request.headers = {'Cookie': document.cookie};
+		if(request.method=='GET'){
+			request.url += (request.param)? '?'+request.data : '';
+		} else {
+			request.data = encodeURI(request.data);
+			l(request.data);
+			request.method = 'POST';
+			request.headers['Content-type'] = 'application/x-www-form-urlencoded';
+		}
+		l('headers compl xhr');
+		console.debug(request);
+		request.onerror = function(r){e(r.responseText);};
+		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
+		GM_xmlhttpRequest(request);
+	},
+	/*
+	 * Helper function to parse through a csv file.
+	 * Calls callback(lineObj) for every line in the csv file
 	 * @TODO improve function based on http://code.google.com/p/jquery-csv/source/browse/src/jquery.csv.js
 	 * @todo: remove first and last \" from each line
 	 */
@@ -759,49 +745,17 @@ var IMDB = {
 	        }
 	    }
 	},
-	/*
-	 * Ajax call to imdb website
-	 * 
-	 */
-	xhr: function(url, data, callback){
-		var caller = IMDB.xhr.caller.name;
-		if(!callback && caller.substr(0,5)=='action'){
-			callback = function(){}; //actions don't need a callback
-		} else if(!callback) {
-			let callbackName = 'parse'+caller.substr(3);
-			callback = IMDB[callbackName];
-		}
-		if(typeof callback != 'function') throw "invalidCallbackException";
-		if(data && data!=null){
-			IMDB.xhrPost(url,data,callback);
-		} else {
-			IMDB.xhrGet(url,callback);
-		}
+
+	serialize: function(obj, prefix){
+	    var str = [];
+	    for(var p in obj) {
+	        var k = prefix ? prefix + "[" + p + "]" : p, v = obj[p];
+	        str.push(typeof v == "object" ? 
+	            serialize(v, k) :
+	            encodeURIComponent(k) + "=" + encodeURIComponent(v));
+	    }
+	    return str.join("&");
 	},
-	xhrPost: function(url, data, callback){
-		if(CONFIG.debug.test && !confirm('ajax: post data to: '+url))return;
-		//l('post: '+url+' data:'+encodeURI(data),2);
-		GM_xmlhttpRequest({
-			method : 'POST',
-			url    : url,
-			headers: {'Content-type':'application/x-www-form-urlencoded',
-						 'Cookie': document.cookie},
-			data   : encodeURI(data),
-			onload : callback,
-			onerror: function(r){e(r.responseText)},
-		});
-	},
-	xhrGet: function(url, callback){
-		if(CONFIG.debug.test && !confirm('ajax: get data from: '+url))return;
-		//l('get: '+url,2);
-		GM_xmlhttpRequest({
-			method : 'GET',
-			url    : url,
-			headers: {'Cookie': document.cookie},
-			onload : callback,
-			onerror: function(r){e(r.responseText)},
-		});
-	}
 };
 
 /*
