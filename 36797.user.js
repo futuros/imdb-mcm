@@ -450,108 +450,6 @@ function rebuildMovieList(command) {
 }
 
 /*
-  * Process the movie list
-  */
-function processMovieList(data, command) {
-	var showNotification = CONFIG.debug.popup || !page.isType(page.TYPE.mymovies) || command;
-	/*--- set categories ---*/
-	var catArray = [];
-	var cats = data.match(/<select name="l".*\n.+\n.+/gi);
-	if(cats && (cats = cats[0].match(/value="\d+">[\w\s]+/gi))){
-		for(var i=1;i<cats.length;i++){
-			c = cats[i].match(/="(\d+)">([\w\s]+)/);
-			if('My Movies '==c[2])continue;
-			catArray.push([c[1],c[2]]);
-		}
-		categories.set(catArray);
-		l('Categories updated. '+categories.array.length+' categorie(s) found',1);
-		if(showNotification){notification.write('Categories updated<br />'+categories.array.length+' categorie(s) found', 3000,true);}
-	} else {e('(line:504) Failed to obtain categories from the xhr result page');	}
-	/*--- set movies ---*/
-	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
-	var movcount=0;
-	if(movs){
-		for (var i=0; i < movs.length; i++) {
-			m = movs[i];
-			if (!m) continue;
-			m2 = m.match(/list\?l=(\d+).*\n.*popup\/mmnote\?id=(\d+):(\d+)/);
-			if (!m2||m2[1]==categories.getId('Recycle Bin')||m2[1]==categories.getId('Pending')) continue;	
-			movies.add({'tid': m2[3], 'categoryid':m2[1], 'controlid':m2[2]});
-			movcount++;
-		}
-		movies.save();
-		l('Movie list updated. '+movcount+' movie(s) found', 1);
-	} else { e('(line:519) Failed to obtain movies from the xhr result page');}
-	/*--- update page ---*/
-	if(showNotification){notification.write('Movie list updated<br />'+movies.array.length+' movie(s) found', 5000,true);}
-	if(!page.isType(page.TYPE.mymovies) && !command){initScript(4);}
-	if(command){
-		// TODO: recreate page
-		if(CONFIG.debug.level<=1){window.location.reload();}
-		else{l('Debug is enabled. So refresh manually');}
-	}
-}
-
-/*
-  * Process vote history
-  */
-function processVoteHistory(data, command) {
-	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
-	if(movs && movs!=null){
-		for (var i=0; i < movs.length; i++) {
-	      m = movs[i];
-	      if (!m) continue;
-			m2 = m.match(/<a href=".title.tt(\d+)\/.*\n<td align="center" bgcolor="#FFFFFF">(\d{1,2})/);
-			if (!m2) continue;	
-			movies.add({'tid': m2[1], 'vote':m2[2]});
-		}	
-		movies.save();
-		notification.write('Votes updated<br />'+movies.array.length+' vote(s) found', 3000,true);
-		l('Vote history updated. '+movies.array.length+' vote(s) found',1);
-	}else{e('(line:545) Failed to obtain votes from xhr result page');}
-	requestMovieList(command);
-}
-
-function requestVotingHistory(command){
-	// Get Voting history full list
-	GM_xmlhttpRequest({
-		method : 'GET',
-		url    : 'http://www.imdb.com/mymovies/list?votehistory&a=1',
-		onload : function(responseDetails) { processVoteHistory(responseDetails.responseText, command);},
-		onerror: function(responseDetails) { e('failed to get vote history');notification.write('Failed to update vote history', 3000);}
-	});
-}
-
-function requestMovieList(command){
-	// Get MyMovies full page
-	GM_xmlhttpRequest({
-		method : 'GET',
-		url    : 'http://www.imdb.com/mymovies/list?a=1',
-		onload : function(responseDetails) { processMovieList(responseDetails.responseText, command); },
-		onerror: function(responseDetails) { e('failed to get movie list');notification.write('Failed to update movie list', 3000)}
-	});
-}
-
-function requestUsername(){
-	//Get the username from the page
-	GM_xmlhttpRequest({
-		method : 'GET',
-		url    : 'http://www.imdb.com/',
-		onload : function(responseDetails) {
-			acc = responseDetails.responseText.match(/\b(\w+)(?=&#x27;s account)/i);
-			if(acc){
-				page.user=acc[1];	
-				initScript(2);
-			}else {
-				e('(line:567) Failed to get imdb username');
-				notification.write('Failed to get imdb username.<br />Make sure you have third party cookies turned on.');
-			}
-		},
-		onerror: function(responseDetails) { e('(line:571) Failed to get imdb username');notification.write('Failed to get imdb username', 3000)}
-	});
-}
-
-/*
  * IMDB API object
  * This object is used for interaction with the IMDB website through AJAX
  * Every getMethodName should call the xhr function which sends the response to parseMethodName.
@@ -684,9 +582,11 @@ var IMDB = {
 	},
 	/* yet to implement */
 	reqAuthorId: function reqAuthorId(){},
-	parseAuthorId: function(response){},
+	parseAuthorId: function(response,request){},
+	reqUsername: function reqUsername(){},
+	parseUsername: function(response,request){},
 	reqSecurityCheck: function reqSecurityCheck(){},
-	parseSecurityCheck: function(response){},
+	parseSecurityCheck: function(response,request){},
 	
 	/*
 	 * Ajax call to IMDB website
@@ -1316,10 +1216,6 @@ function initScript(step){
 	//STEP 1:
 	if(step<=1){
 		l('Initialize script: '+document.location.href, 2);
-		if (!GM_xmlhttpRequest) {
-			alert('Please upgrade to the latest version of Greasemonkey (>= v0.2.6)');
-			return;
-		}
 		notification = new Notification();
 		page = new Page();
 		page.initType();
