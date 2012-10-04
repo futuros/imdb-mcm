@@ -228,7 +228,7 @@ function createCategoriesMenu(movie){
 	menu.className='imcm_menu movie'+movie.id;
 	for(var i in categories.array){
 		a = categories.array[i];
-		if(a[1] == 'Recycle Bin' || a[1] == 'Pending')continue;
+		if(a[1] == 'Recycle Bin' || a[1].toLowerCase() == 'pending')continue;
 		li = document.createElement('li');
 		li.title = 'Add/Remove: '+a[1];
 		li.setAttribute("catid", a[0]);
@@ -556,7 +556,7 @@ function processVoteHistory(data, command) {
 		for (var i=0; i < movs.length; i++) {
 	      m = movs[i];
 	      if (!m) continue;
-			m2 = m.match(/<a href=".title.tt(\d+)\/.*\n<td align="center" bgcolor="#FFFFFF">(\d{1,2})/);
+			m2 = m.match(/<a href=".title.tt(\d+)\/.*\n.*\n.*\n<td class="your_ratings"><a>(\d{1,2})/);
 			if (!m2) continue;	
 			movies.add({'tid': m2[1], 'vote':m2[2]});
 		}	
@@ -571,7 +571,7 @@ function requestVotingHistory(command){
 	// Get Voting history full list
 	GM_xmlhttpRequest({
 		method : 'GET',
-		url    : 'http://www.imdb.com/mymovies/list?votehistory&a=1',
+		url    : 'http://www.imdb.com/list/ratings?view=compact',
 		onload : function(responseDetails) { processVoteHistory(responseDetails.responseText, command);},
 		onerror: function(responseDetails) { e('failed to get vote history');notification.write('Failed to update vote history', 3000)}
 	});
