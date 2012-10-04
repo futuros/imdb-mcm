@@ -667,7 +667,7 @@ var IMDB = {
 		var votesFound=0;
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
 			movies.add({tid: lineObj.const, vote: lineObj.you_rated});
-			votesFound=index;
+			votesFound=index+1;
 		});
 		l(votesFound+' votes found');
 		movies.save();
@@ -710,10 +710,8 @@ var IMDB = {
 		var moviesFound = 0;
 		var categoryId = null; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			if(index<1)
-				console.log(lineObj);
 			movies.add({tid: lineObj.const, categoryid: categoryId});
-			moviesFound = index;
+			moviesFound = index+1;
 		});
 		movies.save();
 		l(moviesFound+' new movies found. Total is now: '+movies.array.length);
@@ -728,15 +726,15 @@ var IMDB = {
 	
 	/*
 	 * @TODO improve function based on http://code.google.com/p/jquery-csv/source/browse/src/jquery.csv.js
-	 * 
+	 * @todo: remove first and last \" from each line
 	 */
 	parseCSV: function(text,callback){
 		var lines = text.split(/\r\n|\n/);
 		l(lines.length+' lines');
-		var headers = lines.shift().replace(/\"/g,'').replace(/\s/g,'_').toLowerCase().split(',');
+		var headers = lines.shift().replace(/\s/g,'_').toLowerCase().split('","');
 		var count=0;
 	    while(lines.length){
-	    	data = lines.shift().split(',');
+	    	data = lines.shift().split('","');
 	    	if (data.length == headers.length) {
                 var line = {};
                 for (var j=0; j<headers.length; j++) {
