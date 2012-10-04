@@ -32,7 +32,9 @@ extra: {"value":xxxx, "name":xxxx}
 get all lists
 http://www.imdb.com/user/urXXXXXXXX/lists
 need to parse the html table for id's
-
+or
+http://www.imdb.com/list/_ajax/wlb_dropdown
+data: tconst=tt0278090 //a 'random' title id
 ----
 
 get movies from lists

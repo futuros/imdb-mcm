@@ -11,12 +11,7 @@
 // @exclude       	http://i.imdb.com/*
 // @exclude       	http://*imdb.com/images/*
 // @exclude       	http://*imdb.de/images/*
-// @grant			GM_getValue
-// @grant			GM_setValue
-// @grant			GM_openInTab
-// @grant			GM_addStyle
-// @grant			GM_xmlhttpRequest
-// @grant			GM_registerMenuCommand
+// @grant			none
 // ==/UserScript==
 
 var Script = {
@@ -196,7 +191,7 @@ var deleted = false;
 
 l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);}
 e = function(v){if(typeof console=='object'){console.error(v);}else{GM_log('[error] '+v);}}
-log = function(v){if(typeof console=='object'){console.log(v);}else{GM_log(v);}}
+log = function(v){if(typeof console=='object'){console.info(v);}else{GM_log(v);}}
 
 /*
  * Get the movie info based on a address string
@@ -244,15 +239,16 @@ function createCategoriesMenu(movie){
 		li.innerHTML = a[1];
 		menu.appendChild(li);
 		if(movie.hasCategory(a[0])){
-			li.addEventListener('click', menuClickHandler, false); 
 			addClassName(li,'checked');
-		} else {
-			li.addEventListener('click', menuClickHandler, false); 
 		}
+		li.addEventListener('click', menuClickHandler, false); 
 	}
 	return menu;
 }
 
+/*
+ *  Click handler for movie list menu's
+ */
 function menuClickHandler(ev){
 	var node = ev.currentTarget;
 	if(hasClassName(node, 'busy')){ return false;}
@@ -632,6 +628,170 @@ function cleanup(){
 }
 
 /*
+ * IMDB API object
+ * This object is used for interaction with the IMDB website through AJAX
+ * Every getMethodName should call the xhr function which sends the response to parseMethodName.
+ * 		getMethodName: function getMethodName(){} // only use this format.
+ * actionMethodName does not have a callback
+ */
+var IMDB = {
+	pref: 'http://www.imdb.com/',	
+	authorId:'ur13251114',
+	check: {value:'0c36',name:'49e6c'},
+	
+	/*
+	 * Temporary function to test the IMDB api in isolation
+	 */
+	test: function(){
+		if(!CONFIG.debug.test)return;
+		var test = prompt('What do we need to test?','Votes,Lists');
+		tests = test.split(',');
+		for(i=0,len=tests.length;i<len;i++){
+			func= IMDB['get'+tests[i]];
+			if(typeof func == 'function')func();
+		}
+	},
+	/*
+	 * Requests the votes in a csv format
+	 */
+	getVotes: function getVotes(){
+		if(!IMDB.authorId) throw authorIdUnknownException;
+		url = IMDB.pref+'list/export?list_id=ratings&author_id='+IMDB.authorId;
+		IMDB.xhr(url);
+	},
+	/*
+	 * Parse the response from the getVotes call
+	 * @param {Object} response The response object from the (succesfull) Ajax call
+	 */
+	parseVotes: function(response){
+		var votesFound=0;
+		IMDB.parseCSV(response.responseText, function(lineObj,index){
+			movies.add({tid: lineObj.const, vote: lineObj.you_rated});
+			votesFound=index;
+		});
+		l(votesFound+' votes found');
+		movies.save();
+	},
+	getLists: function getLists(){
+		IMDB.xhr(IMDB.pref+'list/_ajax/wlb_dropdown','tconst=tt0278090');
+	},
+	parseLists: function(response){
+		let cats = [];
+		let list = JSON.parse(response.responseText);
+		if(!list.items)return;
+		for(i=0, j=list.items.length; i<j; i++){
+			let item = list.items[i];
+			cats.push([item.data_list_id,item.wlb_text]);
+		}
+		// watchlist is ommited
+		cats.push(['watchlist', 'Watchlist']);
+		// save the categories
+		categories.set(cats);
+		// load the movies for the categories
+		IMDB.getMovieLists();
+	},
+	/*
+	 * For loop over the different categories
+	 * Calls getMovieList for each
+	 */
+	getMovieLists: function(){
+		categories.array.forEach(function(elm,index, arr){
+			l('get Movielist['+elm[0]+']: '+elm[1]);
+			IMDB.getMovieList(elm[0]);
+		});
+	},
+	getMovieList: function getMovieList(listId){
+		IMDB.xhr(IMDB.pref+'list/export?list_id='+listId+'&author_id='+IMDB.authorId);
+	},
+	/*
+	 * @TODO: we need a category id in here
+	 */
+	parseMovieList: function(response){
+		var moviesFound = 0;
+		var categoryId = null; // we have to get the movie list id in here
+		IMDB.parseCSV(response.responseText, function(lineObj,index){
+			if(index<1)
+				console.log(lineObj);
+			movies.add({tid: lineObj.const, categoryid: categoryId});
+			moviesFound = index;
+		});
+		movies.save();
+		l(moviesFound+' new movies found. Total is now: '+movies.array.length);
+	},
+	/* yet to implement */
+	getAuthorId: function getAuthorId(){},
+	parseAuthorId: function(response){},
+	getSecurityCheck: function getSecurityCheck(){},
+	parseSecurityCheck: function(response){},
+	actionAddMovie: function(){},
+	actionDeleteMovie: function(){},
+	
+	/*
+	 * @TODO improve function based on http://code.google.com/p/jquery-csv/source/browse/src/jquery.csv.js
+	 * 
+	 */
+	parseCSV: function(text,callback){
+		var lines = text.split(/\r\n|\n/);
+		l(lines.length+' lines');
+		var headers = lines.shift().replace(/\"/g,'').replace(/\s/g,'_').toLowerCase().split(',');
+		var count=0;
+	    while(lines.length){
+	    	data = lines.shift().split(',');
+	    	if (data.length == headers.length) {
+                var line = {};
+                for (var j=0; j<headers.length; j++) {
+                	line[headers[j]] = data[j].replace(/\"/g,'');
+                }
+    	    	callback(line,count++);
+	        }
+	    }
+	},
+	/*
+	 * Ajax call to imdb website
+	 * 
+	 */
+	xhr: function(url, data, callback){
+		var caller = IMDB.xhr.caller.name;
+		if(!callback && caller.substr(0,5)=='action'){
+			callback = function(){}; //actions don't need a callback
+		} else if(!callback) {
+			let callbackName = 'parse'+caller.substr(3);
+			callback = IMDB[callbackName];
+		}
+		if(typeof callback != 'function') throw "invalidCallbackException";
+		if(data && data!=null){
+			IMDB.xhrPost(url,data,callback);
+		} else {
+			IMDB.xhrGet(url,callback);
+		}
+	},
+	xhrPost: function(url, data, callback){
+		if(CONFIG.debug.test && !confirm('ajax: post data to: '+url))return;
+		//l('post: '+url+' data:'+encodeURI(data),2);
+		GM_xmlhttpRequest({
+			method : 'POST',
+			url    : url,
+			headers: {'Content-type':'application/x-www-form-urlencoded',
+						 'Cookie': document.cookie},
+			data   : encodeURI(data),
+			onload : callback,
+			onerror: function(r){e(r.responseText)},
+		});
+	},
+	xhrGet: function(url, callback){
+		if(CONFIG.debug.test && !confirm('ajax: get data from: '+url))return;
+		//l('get: '+url,2);
+		GM_xmlhttpRequest({
+			method : 'GET',
+			url    : url,
+			headers: {'Cookie': document.cookie},
+			onload : callback,
+			onerror: function(r){e(r.responseText)},
+		});
+	}
+};
+
+/*
   * Create a notification object
   */
 function Notification(){
@@ -904,6 +1064,8 @@ function MovieObj(){
 /*
  * Object: Used to manage the movie list
  * keeps all the movie lists in an array with key:value is movielistid:name
+ * @todo: Rename to MovieLists
+ * @todo: Extend from array/object --> iterable
  */
 function CategoryList(){
 	this.string = "";
@@ -1266,7 +1428,8 @@ function initScript(step){
 	if(CONFIG.pulldown){
 		document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
 	}
-	GM_registerMenuCommand(Script.name+' - Rebuild cache', function(){rebuildMovieList(true);});
+	//GM_registerMenuCommand(Script.name+' - Rebuild cache', function(){rebuildMovieList(true);});	
+	IMDB.test();
 }
 
 try
@@ -1319,5 +1482,126 @@ try
 }
 catch(err)
 {}
+
+function GM_addStyle(aCss) {
+	  'use strict';
+	  let head = document.getElementsByTagName('head')[0];
+	  if (head) {
+	    let style = document.createElement('style');
+	    style.setAttribute('type', 'text/css');
+	    style.textContent = aCss;
+	    head.appendChild(style);
+	    return style;
+	  }
+	  return null;
+	}
+
+	const GM_log = console.log;
+
+// This naive implementation will simply fail to do cross-domain requests,
+// just like any javascript in any page would.
+function GM_xmlhttpRequest(aOpts) {
+  'use strict';
+  let req = new XMLHttpRequest();
+
+  __setupRequestEvent(aOpts, req, 'abort');
+  __setupRequestEvent(aOpts, req, 'error');
+  __setupRequestEvent(aOpts, req, 'load');
+  __setupRequestEvent(aOpts, req, 'progress');
+  __setupRequestEvent(aOpts, req, 'readystatechange');
+
+  req.open(aOpts.method, aOpts.url, !aOpts.synchronous,
+      aOpts.user || '', aOpts.password || '');
+  if (aOpts.overrideMimeType) {
+    req.overrideMimeType(aOpts.overrideMimeType);
+  }
+  if (aOpts.headers) {
+    for (let prop in aOpts.headers) {
+      if (Object.prototype.hasOwnProperty.call(aOpts.headers, prop)) {
+        req.setRequestHeader(prop, aOpts.headers[prop]);
+      }
+    }
+  }
+  let body = aOpts.data ? aOpts.data : null;
+  if (aOpts.binary) {
+    return req.sendAsBinary(body);
+  } else {
+    return req.send(body);
+  }
+}
+
+function __setupRequestEvent(aOpts, aReq, aEventName) {
+  'use strict';
+  if (!aOpts['on' + aEventName]) return;
+
+  aReq.addEventListener(aEventName, function(aEvent) {
+    let responseState = {
+      responseText: aReq.responseText,
+      responseXML: aReq.responseXML,
+      readyState: aReq.readyState,
+      responseHeaders: null,
+      status: null,
+      statusText: null,
+      finalUrl: null
+    };
+    switch (aEventName) {
+      case "progress":
+        responseState.lengthComputable = aEvent.lengthComputable;
+        responseState.loaded = aEvent.loaded;
+        responseState.total = aEvent.total;
+        break;
+      case "error":
+        break;
+      default:
+        if (4 != aReq.readyState) break;
+        responseState.responseHeaders = aReq.getAllResponseHeaders();
+        responseState.status = aReq.status;
+        responseState.statusText = aReq.statusText;
+        break;
+    }
+    aOpts['on' + aEventName](responseState);
+  });
+}
+
+const __GM_STORAGE_PREFIX = [
+    '', GM_info.script.namespace, GM_info.script.name, ''].join('***');
+
+// All of the GM_*Value methods rely on DOM Storage's localStorage facility.
+// They work like always, but the values are scoped to a domain, unlike the
+// original functions.  The content page's scripts can access, set, and
+// remove these values.  A
+function GM_deleteValue(aKey) {
+  'use strict';
+  localStorage.removeItem(__GM_STORAGE_PREFIX + aKey);
+}
+
+function GM_getValue(aKey, aDefault) {
+  'use strict';
+  let val = localStorage.getItem(__GM_STORAGE_PREFIX + aKey)
+  if (null === val && 'undefined' != typeof aDefault) return aDefault;
+  return val;
+}
+
+function GM_listValues() {
+  'use strict';
+  let prefixLen = __GM_STORAGE_PREFIX.length;
+  let values = [];
+  let i = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    let k = localStorage.key(i);
+    if (k.substr(0, prefixLen) === __GM_STORAGE_PREFIX) {
+      values.push(k.substr(prefixLen));
+    }
+  }
+  return values;
+}
+
+function GM_setValue(aKey, aVal) {
+  'use strict';
+  localStorage.setItem(__GM_STORAGE_PREFIX + aKey, aVal);
+}
+ function GM_registerMenu(){}
+ function GM_openInTab(){}
+
 
 initScript();
