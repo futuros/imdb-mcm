@@ -505,17 +505,19 @@ function rebuildMovieList(command) {
 }
 
 /*
-  * Process the movie list
+  * Process the movie list dashboard
   */
 function processMovieList(data, command) {
 	var showNotification = CONFIG.debug.popup || !page.isType(page.TYPE.mymovies) || command;
 	/*--- set categories ---*/
 	var catArray = [];
-	var cats = data.match(/<select name="l".*\n.+\n.+/gi);
+	var cats = data.match(/<tr.id=".+".+>\n.+/gi); //<select name="l".*\n.+\n.+/gi //Return category/list name and id container
 	if(cats && (cats = cats[0].match(/value="\d+">[\w\s]+/gi))){
 		for(var i=1;i<cats.length;i++){
 			c = cats[i].match(/="(\d+)">([\w\s]+)/);
-			if('My Movies '==c[2])continue;
+			//if('MyMovies: PENDING'!=c[2])continue;
+			//Old style IMDB MyMovies list are now just standard lists prefixed with MyMovies.
+			c[2]=c[2].replace("MyMovies: ",""); //regex to remove "MyMovies: " prefix
 			catArray.push([c[1],c[2]]);
 		}
 		categories.set(catArray);
@@ -539,6 +541,7 @@ function processMovieList(data, command) {
 	} else { e('(line:519) Failed to obtain movies from the xhr result page');}
 	/*--- update page ---*/
 	if(showNotification){notification.write('Movie list updated<br />'+movies.array.length+' movie(s) found', 5000,true);}
+	//Refresh script + page
 	if(!page.isType(page.TYPE.mymovies) && !command){initScript(4);}
 	if(command){
 		// TODO: recreate page
