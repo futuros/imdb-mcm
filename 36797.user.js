@@ -145,7 +145,7 @@ var CONFIG = {
 	debug:{
 		level: 3,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
 		popup: true,		// show notifications when something gets deleted or updated 
-		test: 1				// use test data instead of real data. 
+		test: (document.location.href.indexOf('tt0278090')!=-1), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
 }	};
 
 var IMAGES = {
@@ -506,7 +506,8 @@ function rebuildMovieList(command) {
 		l('Rebuilding cache - on mymovies page',2);	
 	}
 	movies.clear();
-	requestVotingHistory(command);
+	IMDB.getVotes();
+	IMDB.getLists();
 }
 
 /*
@@ -635,7 +636,7 @@ function cleanup(){
  * actionMethodName does not have a callback
  */
 var IMDB = {
-	pref: 'http://www.imdb.com/',	
+	prefix: 'http://www.imdb.com/',	
 	authorId:'ur13251114',
 	check: {value:'0c36',name:'49e6c'},
 	
@@ -643,7 +644,6 @@ var IMDB = {
 	 * Temporary function to test the IMDB api in isolation
 	 */
 	test: function(){
-		if(!CONFIG.debug.test)return;
 		var test = prompt('What do we need to test?','Votes,Lists');
 		tests = test.split(',');
 		for(i=0,len=tests.length;i<len;i++){
@@ -656,7 +656,7 @@ var IMDB = {
 	 */
 	getVotes: function getVotes(){
 		if(!IMDB.authorId) throw authorIdUnknownException;
-		url = IMDB.pref+'list/export?list_id=ratings&author_id='+IMDB.authorId;
+		url = IMDB.prefix+'list/export?list_id=ratings&author_id='+IMDB.authorId;
 		IMDB.xhr(url);
 	},
 	/*
@@ -673,7 +673,7 @@ var IMDB = {
 		movies.save();
 	},
 	getLists: function getLists(){
-		IMDB.xhr(IMDB.pref+'list/_ajax/wlb_dropdown','tconst=tt0278090');
+		IMDB.xhr(IMDB.prefix+'list/_ajax/wlb_dropdown','tconst=tt0278090');
 	},
 	parseLists: function(response){
 		let cats = [];
@@ -701,7 +701,7 @@ var IMDB = {
 		});
 	},
 	getMovieList: function getMovieList(listId){
-		IMDB.xhr(IMDB.pref+'list/export?list_id='+listId+'&author_id='+IMDB.authorId);
+		IMDB.xhr(IMDB.prefix+'list/export?list_id='+listId+'&author_id='+IMDB.authorId);
 	},
 	/*
 	 * @TODO: we need a category id in here
@@ -1386,7 +1386,7 @@ function initScript(step){
 		l('Movies loaded from cache: '+movies.array.length,1);
 		categories = new CategoryList();
 		l('Categories loaded from cache: '+categories.array.length,1);
-		if ((movies.array.length==0 && categories.array.length==0)||page.isType(page.TYPE.mymovies)){
+		if ((movies.array.length==0 || categories.array.length==0)||page.isType(page.TYPE.mymovies)){
 			l('Movies OR categories is empty. Rebuilding cache',2);
 			rebuildMovieList(false);
 			return;
@@ -1427,7 +1427,7 @@ function initScript(step){
 		document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
 	}
 	//GM_registerMenuCommand(Script.name+' - Rebuild cache', function(){rebuildMovieList(true);});	
-	IMDB.test();
+	if(CONFIG.debug.test)IMDB.test();
 }
 
 try
@@ -1575,7 +1575,7 @@ function GM_deleteValue(aKey) {
 
 function GM_getValue(aKey, aDefault) {
   'use strict';
-  let val = localStorage.getItem(__GM_STORAGE_PREFIX + aKey)
+  let val = localStorage.getItem(__GM_STORAGE_PREFIX + aKey);
   if (null === val && 'undefined' != typeof aDefault) return aDefault;
   return val;
 }
@@ -1584,7 +1584,6 @@ function GM_listValues() {
   'use strict';
   let prefixLen = __GM_STORAGE_PREFIX.length;
   let values = [];
-  let i = 0;
   for (let i = 0; i < localStorage.length; i++) {
     let k = localStorage.key(i);
     if (k.substr(0, prefixLen) === __GM_STORAGE_PREFIX) {
