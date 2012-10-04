@@ -506,7 +506,7 @@ var IMDB = {
 		if(!list.items)return;
 		for(i=0, j=list.items.length; i<j; i++){
 			let item = list.items[i];
-			cats.push([item.data_list_id,item.wlb_text]);
+			cats.push([item.data_list_id,item.wlb_text.replace("MyMovies: ","")]);
 		}
 		// watchlist is ommited
 		cats.push(['watchlist', 'Watchlist']);
