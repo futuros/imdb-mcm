@@ -262,7 +262,7 @@ function menuClickHandler(ev){
 		ev.preventDefault();
 		return false;
 	}
-	IMDB.editMovieAction(movie,catid,node);
+	IMDB.reqMovieAction(movie,catid,node);
 	ev.preventDefault();
 }
 
@@ -364,7 +364,7 @@ function updateCategoryLinks(node,movie){
 					tag.addEventListener('click', function(ev){
 						var node = ev.currentTarget;
 						if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){
-							IMDB.editMovieAction(movie,node.getAttribute('catid')); 
+							IMDB.reqMovieAction(movie,node.getAttribute('catid')); 
 						}
 					},false);
 				}
@@ -445,8 +445,8 @@ function rebuildMovieList(command) {
 		l('Rebuilding cache - on mymovies page',2);	
 	}
 	movies.clear();
-	IMDB.getVotes();
-	IMDB.getLists();
+	IMDB.reqVotes();
+	IMDB.reqLists();
 }
 
 /*
@@ -570,14 +570,14 @@ var IMDB = {
 		var test = prompt('What do we need to test?','Votes,Lists');
 		tests = test.split(',');
 		for(i=0,len=tests.length;i<len;i++){
-			func= IMDB['get'+tests[i]];
+			func= IMDB['req'+tests[i]];
 			if(typeof func == 'function')func();
 		}
 	},
 	/*
 	 * Requests the votes in a csv format
 	 */
-	getVotes: function getVotes(){
+	reqVotes: function reqVotes(){
 		if(!IMDB.authorId) throw "authorIdUnknownException";
 		var request = {url:'list/export', method:'GET'};
 		request.param = {'list_id':'ratings','author_id':IMDB.authorId};
@@ -585,7 +585,7 @@ var IMDB = {
 		IMDB.xhr(request);
 	},
 	/*
-	 * Parse the response from the getVotes call
+	 * Parse the response from the reqVotes call
 	 * @param {Object} response The response object from the (succesfull) Ajax call
 	 */
 	parseVotes: function(response){
@@ -597,7 +597,7 @@ var IMDB = {
 		l(votesFound+' votes found');
 		movies.save();
 	},
-	getLists: function getLists(){
+	reqLists: function reqLists(){
 		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
 		request.param = {'tconst':'tt0278090'};
 		IMDB.xhr(request);
@@ -615,19 +615,19 @@ var IMDB = {
 		// save the categories
 		categories.set(cats);
 		// load the movies for the categories
-		IMDB.getMovieLists();
+		IMDB.reqMovieLists();
 	},
 	/*
 	 * For loop over the different categories
-	 * Calls getMovieList for each
+	 * Calls reqMovieList for each
 	 */
-	getMovieLists: function(){
+	reqMovieLists: function(){
 		categories.array.forEach(function(elm,index, arr){
-			l('get Movielist['+elm[0]+']: '+elm[1]);
-			IMDB.getMovieList(elm[0]);
+			l('req Movielist['+elm[0]+']: '+elm[1]);
+			IMDB.reqMovieList(elm[0]);
 		});
 	},
-	getMovieList: function getMovieList(listId){
+	reqMovieList: function reqMovieList(listId){
 		let request = {url: 'list/export', method:'GET'};
 		request.param = {'list_id':listId, 'author_id':IMDB.authorId};
 		IMDB.xhr(request);
@@ -639,13 +639,13 @@ var IMDB = {
 		var moviesFound = 0;
 		var categoryId = request.param.list_id; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			movies.add({tid: lineObj.const, categoryid: categoryId});
+			movies.add({tid: lineObj.const, categoryid: categoryId, controlid: null});
 			moviesFound = index+1;
 		});
 		movies.save();
 		l(moviesFound+' new movies found. Total is now: '+movies.array.length);
 	},
-	editMovieAction: function(movie,list_id,handle){
+	reqMovieAction: function(movie,list_id,handle){
 		let request = {url:'list/_ajax/edit'};
 		request.param = {
 				'const':'tt'+movie.id,
@@ -654,20 +654,21 @@ var IMDB = {
 		};
 		if(movie.hasCategory(list_id)){
 			request.param.action='delete';
+			request.param.list_item_id=movie.getControlId();
 		}
 		request.param[IMDB.check.name]=IMDB.check.value;
 		request.movie = movie;
 		if(handle)request.handle = handle;
-		request.callback = IMDB.editMovieResult;
+		request.callback = IMDB.parseMovieAction;
 		IMDB.xhr(request);
 	},
-	editMovieResult: function(response, request){
+	parseMovieAction: function(response, request){
 		json = JSON.parse(response.responseText);
 		if(json.status=='200'){
 			if(request.param.action=='delete'){ //succesfully deleted
 				request.movie.deleteCategory(request.param.list_id);
 			} else { //succesfully added
-				request.movie.addCategory(request.param.list_id);
+				request.movie.addCategory(request.param.list_id,json.list_item_id);
 			}
 			movies.save();
 			if(request.handle){
@@ -682,43 +683,33 @@ var IMDB = {
 		removeClassName(request.handle, 'busy');
 	},
 	/* yet to implement */
-	getAuthorId: function getAuthorId(){},
+	reqAuthorId: function reqAuthorId(){},
 	parseAuthorId: function(response){},
-	getSecurityCheck: function getSecurityCheck(){},
+	reqSecurityCheck: function reqSecurityCheck(){},
 	parseSecurityCheck: function(response){},
 	
 	/*
-	 * Ajax call to imdb website
+	 * Ajax call to IMDB website
 	 * 
 	 */
 	xhr: function(request){
-		l('call xhr');
-		console.log(request);
-		if(!request.callback){
-			l('no request');
-			let callbackName = 'parse'+IMDB.xhr.caller.name.substr(3);
+		if(!request.callback){ // if callback is not supplied 
+			let callbackName = 'parse'+IMDB.xhr.caller.name.substr(3); // create a callback fuction based on the name of the function calling imdb.xhr 
 			request.callback = IMDB[callbackName];
 		}
-		l(request.callback);
 		if(typeof request.callback != 'function') throw "invalidCallbackException";
 		request.onload = function(response){request.callback(response,request);}; // sends the response and request to the callback function
-		l('callbacl cmplete xhr');
 		
 		request.url = IMDB.prefix+request.url;
-		l(request.url);
 		if(request.param)request.data = IMDB.serialize(request.param);
-		l(request.data);
 		request.headers = {'Cookie': document.cookie};
 		if(request.method=='GET'){
 			request.url += (request.param)? '?'+request.data : '';
 		} else {
 			request.data = encodeURI(request.data);
-			l(request.data);
 			request.method = 'POST';
 			request.headers['Content-type'] = 'application/x-www-form-urlencoded';
 		}
-		l('headers compl xhr');
-		console.debug(request);
 		request.onerror = function(r){e(r.responseText);};
 		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
 		GM_xmlhttpRequest(request);
