@@ -1245,14 +1245,14 @@ function initScript(step){
 		l('Movies loaded from cache: '+movies.array.length,1);
 		categories = new CategoryList();
 		l('Categories loaded from cache: '+categories.array.length,1);
-		if ((movies.array.length==0 || categories.array.length==0){
+		if (movies.array.length==0 || categories.array.length==0){
 			l('Movies OR categories is empty. Rebuilding cache',2);
 			rebuildMovieList(false);
 			return;
 		}
 		if(page.isType(page.TYPE.mymovies)){ //mymovies page
 			/*
-			 * @TODO: Add button/menu for cache reload
+			 * @TODO: Add button/menu for cache reload 
 			 * We should reload the cache on every page view.
 			 * We can add a button in the top corner. And if we push it the cache gets reloaded.
 			 */
