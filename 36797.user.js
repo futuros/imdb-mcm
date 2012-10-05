@@ -183,7 +183,6 @@ GM_addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manag
 var movies; // object with all the movies in the my movies list
 var categories; // object with all the categories
 var notification; // obj to show notifications 
-var page; // object with info about the current page
 var activePulldown;
 var pulldowns =1000;
 
@@ -198,7 +197,7 @@ function getMovieInfo(address) {
 	tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
 	if (!tid) return false;
 	m = getMovie(tid[1]);
-	if(page.isType(page.TYPE.title) && page.movie && m.id == page.movie.id)return false; // important! Check if page.movie because the page is being checked against this function to.
+	if(Page.isType(Page.TYPE.title) && Page.movie && m.id == Page.movie.id)return false; // important! Check if page.movie because the page is being checked against this function to.
 	return m;
 }
 /*
@@ -422,7 +421,7 @@ function saveVote(evt){
 	vu = document.getElementById('voteuser');
 	if(!vu)return false;
 	vote = (vote = vu.innerHTML.match(/^(\d{1,2})$/)) ? parseInt(vote[1]) : 0;
-	movie = getMovie(page.movie.id);
+	movie = getMovie(Page.movie.id);
 	if(movie.vote!=vote){
 		movie.setVote(vote);
 		movies.save();
@@ -438,7 +437,7 @@ function rebuildMovieList(command) {
 	if(command){
 		l('Rebuilding cache - manual request',2);
 		notification.write('Updating the movie list.');
-	} else if(!page.isType(page.TYPE.mymovies)){
+	} else if(!Page.isType(Page.TYPE.mymovies)){
 		l('Building cache on first script run',1);
 		notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
 	} else {
@@ -639,7 +638,7 @@ var IMDB = {
 		l('init: '+onInit);
 		if(onInit){ // if the rebuild script was started on page init
 			notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 3000,true);
-			initScript(4); // reinitialize the page
+			Page.initMenus(); // reinitialize the page
 		} else {
 			window.location.reload(); //reload the page
 		}
@@ -737,7 +736,7 @@ function Notification(){
  */
 function MovieList(){
 	this.array = [];
-	this.name = page.getUser()+'_movies';
+	this.name = Page.user+'_movies';
 	var obj = this;
 	
 	/*
@@ -970,7 +969,7 @@ function MovieObj(){
 function CategoryList(){
 	this.string = "";
 	this.array = [];
-	this.name = 'imdb+_'+page.getUser()+'_categories';
+	this.name = 'imdb+_'+Page.user+'_categories';
 	var obj = this;
 	
 	/*
@@ -1053,7 +1052,7 @@ function CategoryList(){
 	
 	// get the value at script start
 	this.get();
-}
+};
 
 /*
  * Object to handle information about the page if it is a title page
@@ -1063,78 +1062,167 @@ function CategoryList(){
  * imdb:		IMDB Page with movie links
  * external:	External page; not implemented yet
  */
-function Page(){
-	this.TYPE = {title: 0, mymovies: 1, imdb: 2, external: 3}
-	this.user, this.type, this.loc, this.movie, this.header;
+var Page = {
+	TYPE: {title: 0, mymovies: 1, imdb: 2, external: 3},
 	
-	this.initType = function(){
-		this.loc = document.location.href;
-		if(this.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
-			this.type = this.TYPE.external;
-		} else	if(this.loc.search(/\/user/)!=-1){
-			this.type = this.TYPE.mymovies;
-		} else	if(this.loc.search(/\/list/)!=-1){
-			this.type = this.TYPE.mymovies;
-		} else if(this.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
-			this.type = this.TYPE.title;
+	init: function(){
+		if(window.location != window.parent.location)return false; //page not in iframe
+		l('Initialize script: '+document.location.href, 2);
+		notification = new Notification();
+		Page.initType();
+	},
+	
+	initType: function(){
+		Page.loc = document.location.href;
+		if(Page.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
+			Page.type = Page.TYPE.external;
+		} else	if(Page.loc.search(/\/user/)!=-1){
+			Page.type = Page.TYPE.mymovies;
+		} else	if(Page.loc.search(/\/list/)!=-1){
+			Page.type = Page.TYPE.mymovies;
+		} else if(Page.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
+			Page.type = Page.TYPE.title;
 		} else {
-			this.type = this.TYPE.imdb;
+			Page.type = Page.TYPE.imdb;
 		}
-		l('Page type: '+this.getTypeName());
-	}
-
-	this.initUser = function(){
-		if(this.user)return true;
-		var account = document.getElementById('nb15personal') || document.getElementById('nb_personal');
-		if (account) {
-			var result = account.innerHTML.match(/\s*([^>]+)'s account/i);
-			if (result && result[1]) {
-				this.user = result[1];
-				return true;
+		l('Page type: '+Page.type);
+		Page.initUser();
+	},
+	/*
+	 * Get the Username
+	 * Get the AuthorId
+	 * Get the Security Checks
+	 */
+	initUser: function(){
+		l('Initialize username' ,2);
+		if(!Page.user){
+			var account = document.getElementById('nb15personal') || document.getElementById('nb_personal');
+			if (account) {
+				var result = account.innerHTML.match(/\s*([^>]+)'s account/i);
+				if (result && result[1]) {
+					Page.user = result[1];
+				} else {
+					if(Page.isType(Page.TYPE.external)){
+						l('External page. Send them to IMDB',2);
+						notification.write('You need to visit an IMDB page first before you can use this script on external sites. <a href="http://www.imdb.com/">Imdb.com</a>', 5000);
+					} else {
+						e('(line:1160) No user is logged in');
+						notification.write('You need to <a href="http://www.imdb.com/register/login">log in</a> to IMDb for this script to work ', 5000);
+					}
+					return;
+				}
 			}
 		}
-		return false;
-	}
-
-	this.initTitle = function(){
-		if(!this.isType(this.TYPE.title) || !this.initMovie())return false;
+		l('Username initialized: '+Page.user,1);
+		Page.initMenus();
+	},
+	initMenus: function(){
+		l('Init menus',2);
+		//if(Page.isType(Page.TYPE.mymovies)){ //mymovies page
+			
+			 //@TODO: Add button/menu for cache reload 
+			 //We should reload the cache on every page view.
+			 //We can add a button in the top corner. And if we push it the cache gets reloaded.
+			 //
+		//}
+		Page.initCaches();
+	},
+	initCaches: function(){
+		l('Load movies and categories from cache',2);
+		movies = new MovieList();
+		movies.load();
+		l('Movies loaded from cache: '+movies.array.length,1);
+		categories = new CategoryList();
+		l('Categories loaded from cache: '+categories.array.length,1);
+		if(movies.array.length==0 || categories.array.length==0){
+			l('Movies OR categories are empty. Rebuilding cache',2);
+			//IMDB.rebuild(false);
+			rebuildMovieList();
+			return;
+		} else {
+			Page.initLinks();
+		}
+	},
+	initLinks: function(){
+		Page.start(); //we need to start this first otherwise the script fails
+		l('init links on page',2);
+		var links = document.getElementsByTagName('a');
+		linkCount=0;
+		activeLinks=0;
+		l('links found:'+links.length);
+		for (var i=0; i < links.length; i++) {
+			var link = links[i];
+			if(movie = getMovieInfo(link.href)){
+				if(appendCategoryLinks(link, movie)){activeLinks++;}
+				linkCount++;			
+			}
+		}
+		if(linkCount){
+			l(linkCount+' imdb links found',1);
+			l(activeLinks+' links highlighted',2);
+		}
+		if(CONFIG.pulldown){
+			document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
+		}
+		l('eind links');
+		//Page.start();
+	},
+	start: function(){
+		l('start switcher');
+		switch(Page.type){
+			case Page.TYPE.title:
+				Page.startTitle();
+			break;
+			case Page.TYPE.mymovies:
+				Page.startMymovies();
+			break;
+			case Page.TYPE.imdb:
+				Page.startOther();
+			break;
+			case Page.TYPE.external:
+				Page.startExternal();
+			break;
+		}
+	},
+	startTitle: function(){
+		l('start title page');
+		if(Page.initHeader()){ //Title page
+			// when the user votes the page should be updated
+			if(vu = document.getElementById('voteuser')){
+				vu.addEventListener('DOMNodeInserted',  function(){setTimeout(saveVote,0);}, true); // settimeout is required due to a bug in greasemonkey
+			}
+			appendCategoryLinks(Page.header, Page.movie);
+			l('Adding category menu to the title page', 2);
+			if(!(sideBar = document.getElementById('maindetails_sidebar_bottom'))){e('(line:1237) maindetails_sidebar_bottom could not be found. Could not add categories menu');return false;}
+			var catDiv = document.createElement('div');
+			catDiv.className = 'imcm_catlist aux-content-widget-2';	
+			catDiv.appendChild(createCategoriesMenu(Page.movie));
+			sideBar.insertBefore(catDiv,sideBar.firstChild);
+			
+			if(CONFIG.debug.test)IMDB.test();
+		}
+	},
+	initHeader: function(){
+		l('init header');
+		if(!Page.isType(Page.TYPE.title) || !Page.initMovie())return false;
 		h1s = document.getElementsByTagName('h1');
 		if(h1s.length==1){
-			this.header=h1s[0];
+			Page.header=h1s[0];
+			l('header found');
 			return true;
 		} else {
 			e('(line:801) no header found on page with type title');
 			return false;
 		}
+	},
+	initMovie: function(){
+		l('init movie');
+		return Page.movie = getMovieInfo(Page.loc);
+	},
+	isType: function(type){
+		return Page.type==type;
 	}
-
-	this.initMovie = function(){
-		return this.movie = getMovieInfo(this.loc);
-	}
-	
-	this.getUser = function(){
-		return this.user;
-	}
-	
-	this.freshMovie = function(){
-		this.initMovie();
-		return this.movie;
-	}
-	
-	this.isType = function(type){
-		return this.type==type;
-	}
-	
-	this.isActive = function(){
-		return this.isType(this.TYPE.title) && this.movie && this.movie.isActive();
-	}
-	this.getTypeName = function(){
-		for(var i in this.TYPE){
-			if(this.TYPE[i]==this.type)return i;
-		}
-		return undefined;
-	}
-}
+};
 
 /*---------------------- START UTIL FUNCTIONS ---------------------------------*/
 (function () {
@@ -1249,95 +1337,6 @@ var getElementsByClassName = function (className, tag, elm){
 };
 
 /*---------------------- END Common functions ---------------------------------*/
-
-/*
- * Function called to start the script.
- */
-function initScript(step){
-	if(window.location != window.parent.location)return false; //page not in iframe
-	step = step?step:1;
-	//STEP 1:
-	if(step<=1){
-		l('Initialize script: '+document.location.href, 2);
-		notification = new Notification();
-		page = new Page();
-		page.initType();
-	} 
-	//STEP 2:
-	if (step<=2){
-		l('Initialize username' ,2);
-		if(!page.initUser()){
-			if(page.isType(page.TYPE.external)){
-				l('External page. Request username through Ajax',2);
-				requestUsername();
-			} else {
-				e('(line:1160) No user is logged in');
-				notification.write('You need to <a href="http://www.imdb.com/register/login">log in</a> to IMDb for this script to work ', 5000);
-			}
-			return;
-		}
-		l('Username initialized: '+page.getUser(),1);
-	}
-	//STEP 3:
-	if(step<=3){
-		l('Load movies and categories from cache',2);
-		movies = new MovieList();
-		movies.load();
-		l('Movies loaded from cache: '+movies.array.length,1);
-		categories = new CategoryList();
-		l('Categories loaded from cache: '+categories.array.length,1);
-		if (movies.array.length==0 || categories.array.length==0){
-			l('Movies OR categories is empty. Rebuilding cache',2);
-			rebuildMovieList(false);
-			return;
-		}
-		if(page.isType(page.TYPE.mymovies)){ //mymovies page
-			/*
-			 * @TODO: Add button/menu for cache reload 
-			 * We should reload the cache on every page view.
-			 * We can add a button in the top corner. And if we push it the cache gets reloaded.
-			 */
-			return;
-		}
-	}
-	//STEP 4:
-	if (page.initTitle()){ 	
-	/* Title page */	
-		console.debug(page.movie);
-		// when the user votes the page should be updated
-		if(vu = document.getElementById('voteuser')){
-			vu.addEventListener('DOMNodeInserted',  function(){setTimeout(saveVote,0);}, true); // settimeout is required due to a bug in greasemonkey
-		}
-		appendCategoryLinks(page.header, page.movie);
-		l('Adding category menu to the title page', 2);
-		if(!(sideBar = document.getElementById('maindetails_sidebar_bottom'))){e('(line:1237) maindetails_sidebar_bottom could not be found. Could not add categories menu');return false;}
-		var catDiv = document.createElement('div');
-		catDiv.className = 'imcm_catlist aux-content-widget-2';	
-		catDiv.appendChild(createCategoriesMenu(page.movie));
-		sideBar.insertBefore(catDiv,sideBar.firstChild);
-	} 
-	/* Any page except of My movies page: Change the links on the page */		
-	if(movies.array.length==0 || categories.array.length==0)return;
-	var links = document.getElementsByTagName('a');
-	linkCount=0;
-	activeLinks=0;
-	for (var i=0; i < links.length; i++) {
-		var link = links[i];
-		if(movie = getMovieInfo(link.href)){
-			if(appendCategoryLinks(link, movie)){activeLinks++;}
-			linkCount++;			
-		}
-	}
-	if(linkCount){
-		l(linkCount+' imdb links found',1);
-		l(activeLinks+' links highlighted',2);
-	}
-	if(CONFIG.pulldown){
-		document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
-	}
-	//add / button or menu for cache reload
-	if(CONFIG.debug.test)IMDB.test();
-}
 
 try
 {
@@ -1506,8 +1505,7 @@ function GM_setValue(aKey, aVal) {
   'use strict';
   localStorage.setItem(__GM_STORAGE_PREFIX + aKey, aVal);
 }
- function GM_registerMenu(){}
- function GM_openInTab(){}
+function GM_registerMenu(){return;}
+function GM_openInTab(){return;}
 
-
-initScript();
+Page.init();
