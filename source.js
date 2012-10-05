@@ -505,13 +505,13 @@ function rebuildMovieList(command) {
 }
 
 /*
-  * Process the movie list dashboard
-  */
-function processMovieList(data, command) {
+ * Process categories
+ */
+function processCategories(data, command) {
 	var showNotification = CONFIG.debug.popup || !page.isType(page.TYPE.mymovies) || command;
 	/*--- set categories ---*/
 	var catArray = [];
-	var cats = data.match(/<tr.id=".+".+>\n.+/gi); //<select name="l".*\n.+\n.+/gi //Return category/list name and id container
+	var cats = data.match(/<tr.id=".+".+>\n.+/gi); //Return category/list name and id container
 	if(cats && (cats = cats[0].match(/value="\d+">[\w\s]+/gi))){
 		for(var i=1;i<cats.length;i++){
 			c = cats[i].match(/="(\d+)">([\w\s]+)/);
@@ -524,6 +524,14 @@ function processMovieList(data, command) {
 		l('Categories updated. '+categories.array.length+' categorie(s) found',1);
 		if(showNotification){notification.write('Categories updated<br />'+categories.array.length+' categorie(s) found', 3000,true);}
 	} else {e('(line:504) Failed to obtain categories from the xhr result page');	}
+}
+
+/*
+  * Process the movie list dashboard
+  */
+function processMyMovies(data, command) {
+	processCategories(data, command);
+	
 	/*--- set movies ---*/
 	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
 	var movcount=0;
@@ -567,11 +575,11 @@ function processVoteHistory(data, command) {
 		notification.write('Votes updated<br />'+movies.array.length+' vote(s) found', 3000,true);
 		l('Vote history updated. '+movies.array.length+' vote(s) found',1);
 	}else{e('(line:545) Failed to obtain votes from xhr result page');}
-	requestMovieList(command);
+	requestMyMovies(command);
 }
 
 function requestVotingHistory(command){
-	// Get Voting history full list
+	// Get Voting history list
 	GM_xmlhttpRequest({
 		method : 'GET',
 		url    : 'http://www.imdb.com/list/ratings?view=compact',
@@ -580,12 +588,12 @@ function requestVotingHistory(command){
 	});
 }
 
-function requestMovieList(command){
-	// Get MyMovies full page
+function requestMyMovies(command){
+	// MyMovies dashboard
 	GM_xmlhttpRequest({
 		method : 'GET',
 		url    : 'http://www.imdb.com/mymovies/list?a=1',
-		onload : function(responseDetails) { processMovieList(responseDetails.responseText, command); },
+		onload : function(responseDetails) { processMyMovies(responseDetails.responseText, command); },
 		onerror: function(responseDetails) { e('failed to get movie list');notification.write('Failed to update movie list', 3000)}
 	});
 }
