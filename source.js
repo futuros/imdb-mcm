@@ -502,6 +502,7 @@ function rebuildMovieList(command) {
 	}
 	movies.clear();
 	requestVotingHistory(command);
+	requestMyMovies(command);
 }
 
 /*
@@ -531,7 +532,7 @@ function processCategories(data, command) {
   */
 function processMyMovies(data, command) {
 	processCategories(data, command);
-	processmovieList(data, command);
+	processMovieList(data, command);
 	
 	/*--- update page ---*/
 	if(showNotification){notification.write('Movie list updated<br />'+movies.array.length+' movie(s) found', 5000,true);}
@@ -547,8 +548,7 @@ function processMyMovies(data, command) {
 /*
   * Process movie list
   */
- function processMovieList(data, command) {
-	/*--- set movies ---*/
+function processMovieList(data, command) {
 	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
 	var movcount=0;
 	if(movs){
@@ -561,7 +561,7 @@ function processMyMovies(data, command) {
 			movcount++;
 		}
 		movies.save();
-		l('Movie list updated. '+movcount+' movie(s) found', 1);
+		l('Movies updated. '+movcount+' movie(s) found', 1);
 	} else { e('(line:519) Failed to obtain movies from the xhr result page');}
 }
 
@@ -570,19 +570,20 @@ function processMyMovies(data, command) {
   */
 function processVoteHistory(data, command) {
 	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
-	if(movs && movs!=null){
+	var movcount=0;
+	if(movs){
 		for (var i=0; i < movs.length; i++) {
 	      m = movs[i];
 	      if (!m) continue;
 			m2 = m.match(/<a href=".title.tt(\d+)\/.*\n.*\n.*\n<td class="your_ratings"><a>(\d{1,2})/);
 			if (!m2) continue;	
 			movies.add({'tid': m2[1], 'vote':m2[2]});
+			movcount++;
 		}	
 		movies.save();
-		notification.write('Votes updated<br />'+movies.array.length+' vote(s) found', 3000,true);
-		l('Vote history updated. '+movies.array.length+' vote(s) found',1);
+		notification.write('Votes updated<br />'+movcount+' vote(s) found', 3000,true);
+		l('Vote history updated. '+movcount+' vote(s) found',1);
 	}else{e('(line:545) Failed to obtain votes from xhr result page');}
-	requestMyMovies(command);
 }
 
 function requestVotingHistory(command){
