@@ -531,7 +531,23 @@ function processCategories(data, command) {
   */
 function processMyMovies(data, command) {
 	processCategories(data, command);
+	processmovieList(data, command);
 	
+	/*--- update page ---*/
+	if(showNotification){notification.write('Movie list updated<br />'+movies.array.length+' movie(s) found', 5000,true);}
+	//Refresh script + page
+	if(!page.isType(page.TYPE.mymovies) && !command){initScript(4);}
+	if(command){
+		// TODO: recreate page
+		if(CONFIG.debug.level<=1){window.location.reload();}
+		else{l('Debug is enabled. So refresh manually');}
+	}
+}
+
+/*
+  * Process movie list
+  */
+ function processMovieList(data, command) {
 	/*--- set movies ---*/
 	var movs = data.match(/<a href=".title.tt[0]*\d+.*\n.*/gi);
 	var movcount=0;
@@ -547,15 +563,6 @@ function processMyMovies(data, command) {
 		movies.save();
 		l('Movie list updated. '+movcount+' movie(s) found', 1);
 	} else { e('(line:519) Failed to obtain movies from the xhr result page');}
-	/*--- update page ---*/
-	if(showNotification){notification.write('Movie list updated<br />'+movies.array.length+' movie(s) found', 5000,true);}
-	//Refresh script + page
-	if(!page.isType(page.TYPE.mymovies) && !command){initScript(4);}
-	if(command){
-		// TODO: recreate page
-		if(CONFIG.debug.level<=1){window.location.reload();}
-		else{l('Debug is enabled. So refresh manually');}
-	}
 }
 
 /*
