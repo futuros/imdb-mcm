@@ -1030,7 +1030,9 @@ function Page(){
 		this.loc = document.location.href;
 		if(this.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
 			this.type = this.TYPE.external;
-		} else	if(this.loc.search(/\/mymovies\/list/)!=-1){
+		} else	if(this.loc.search(/\/user/)!=-1){
+			this.type = this.TYPE.mymovies;
+		} else	if(this.loc.search(/\/list/)!=-1){
 			this.type = this.TYPE.mymovies;
 		} else if(this.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
 			this.type = this.TYPE.title;
@@ -1243,9 +1245,17 @@ function initScript(step){
 		l('Movies loaded from cache: '+movies.array.length,1);
 		categories = new CategoryList();
 		l('Categories loaded from cache: '+categories.array.length,1);
-		if ((movies.array.length==0 || categories.array.length==0)||page.isType(page.TYPE.mymovies)){
+		if ((movies.array.length==0 || categories.array.length==0){
 			l('Movies OR categories is empty. Rebuilding cache',2);
 			rebuildMovieList(false);
+			return;
+		}
+		if(page.isType(page.TYPE.mymovies)){ //mymovies page
+			/*
+			 * @TODO: Add button/menu for cache reload
+			 * We should reload the cache on every page view.
+			 * We can add a button in the top corner. And if we push it the cache gets reloaded.
+			 */
 			return;
 		}
 	}
@@ -1284,7 +1294,7 @@ function initScript(step){
 	if(CONFIG.pulldown){
 		document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
 	}
-	//GM_registerMenuCommand(Script.name+' - Rebuild cache', function(){rebuildMovieList(true);});	
+	//add / button or menu for cache reload
 	if(CONFIG.debug.test)IMDB.test();
 }
 
