@@ -476,7 +476,7 @@ var IMDB = {
 	/*
 	 * Requests the votes in a csv format
 	 */
-	reqVotes: function reqVotes(){
+	reqVotes: function(){
 		if(!IMDB.authorId) throw "authorIdUnknownException";
 		var request = {url:'list/export', method:'GET'};
 		request.param = {'list_id':'ratings','author_id':IMDB.authorId};
@@ -496,7 +496,7 @@ var IMDB = {
 		l(votesFound+' votes found');
 		movies.save();
 	},
-	reqLists: function reqLists(onInit){
+	reqLists: function(onInit){
 		if(onInit)IMDB.onInit=true;
 		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
 		request.param = {'tconst':'tt0278090'};
@@ -527,7 +527,7 @@ var IMDB = {
 			IMDB.reqMovieList(elm[0]);
 		});
 	},
-	reqMovieList: function reqMovieList(listId){
+	reqMovieList: function(listId){
 		let request = {url: 'list/export', method:'GET'};
 		request.param = {'list_id':listId, 'author_id':IMDB.authorId};
 		IMDB.xhr(request);
@@ -559,7 +559,6 @@ var IMDB = {
 		request.param[IMDB.check.name]=IMDB.check.value;
 		request.movie = movie;
 		if(handle)request.handle = handle;
-		request.callback = IMDB.parseMovieAction;
 		IMDB.xhr(request);
 	},
 	parseMovieAction: function(response, request){
@@ -583,11 +582,11 @@ var IMDB = {
 		removeClassName(request.handle, 'busy');
 	},
 	/* yet to implement */
-	reqAuthorId: function reqAuthorId(){},
+	reqAuthorId: function(){},
 	parseAuthorId: function(response,request){},
-	reqUsername: function reqUsername(){},
+	reqUsername: function(){},
 	parseUsername: function(response,request){},
-	reqSecurityCheck: function reqSecurityCheck(){},
+	reqSecurityCheck: function(){},
 	parseSecurityCheck: function(response,request){},
 	
 	/*
@@ -596,7 +595,8 @@ var IMDB = {
 	 */
 	xhr: function(request){
 		if(!request.callback){ // if callback is not supplied 
-			var callbackName = IMDB.xhr.caller.name.substr(3); // create a callback fuction based on the name of the function calling imdb.xhr 
+			var callbackName =  IMDB.findProp(function(p){return IMDB[p]===IMDB.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
+			l('cn '+callbackName);
 			request.callback = IMDB['parse'+callbackName];
 			if(callbackName == 'Votes' || callbackName == 'MovieList'){
 				IMDB.counter.req++; //increment the number of outstanding calls
@@ -677,6 +677,17 @@ var IMDB = {
 	    }
 	    return str.join("&");
 	},
+	/*
+	 * Loops over all the properties if callback returns true return the property
+	 * @return property name
+	 */
+    findProp: function(callback){
+        for(p in IMDB){
+            if (IMDB.hasOwnProperty(p) && callback(p))
+               return(p);
+        }
+        return false;
+    }
 };
 
 /*
