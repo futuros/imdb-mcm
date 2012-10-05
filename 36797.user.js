@@ -446,7 +446,7 @@ function rebuildMovieList(command) {
 	}
 	movies.clear();
 	IMDB.reqVotes();
-	IMDB.reqLists();
+	IMDB.reqLists(!command); //!command -> means initScript
 }
 
 /*
@@ -460,7 +460,8 @@ var IMDB = {
 	prefix: 'http://www.imdb.com/',	
 	authorId:'ur13251114',
 	check: {name:'49e6c',value:'0c36'},
-	
+	counter: { req:0, resp:0}, // counts the number of outstanding/incomming getVotes,getLists,getMovieList calls.
+	onInit: false,
 	/*
 	 * Temporary function to test the IMDB api in isolation
 	 */
@@ -495,7 +496,8 @@ var IMDB = {
 		l(votesFound+' votes found');
 		movies.save();
 	},
-	reqLists: function reqLists(){
+	reqLists: function reqLists(onInit){
+		if(onInit)IMDB.onInit=true;
 		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
 		request.param = {'tconst':'tt0278090'};
 		IMDB.xhr(request);
@@ -534,15 +536,15 @@ var IMDB = {
 	 * 
 	 */
 	parseMovieList: function(response,request){
-		var moviesFound = 0;
-		var categoryId = request.param.list_id; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			movies.add({tid: lineObj.const, categoryid: categoryId, controlid: 1});
+			movies.add({tid: lineObj.const, categoryid: request.param.list_id, controlid: 1});
 			moviesFound = index+1;
 		});
 		movies.save();
-		l(moviesFound+' new movies found. Total is now: '+movies.array.length);
 	},
+	/*
+	 * 
+	 */
 	reqMovieAction: function(movie,list_id,handle){
 		let request = {url:'list/_ajax/edit'};
 		request.param = {
@@ -594,11 +596,23 @@ var IMDB = {
 	 */
 	xhr: function(request){
 		if(!request.callback){ // if callback is not supplied 
-			let callbackName = 'parse'+IMDB.xhr.caller.name.substr(3); // create a callback fuction based on the name of the function calling imdb.xhr 
-			request.callback = IMDB[callbackName];
+			var callbackName = IMDB.xhr.caller.name.substr(3); // create a callback fuction based on the name of the function calling imdb.xhr 
+			request.callback = IMDB['parse'+callbackName];
+			if(callbackName == 'Votes' || callbackName == 'MovieList'){
+				IMDB.counter.req++; //increment the number of outstanding calls
+			}
 		}
 		if(typeof request.callback != 'function') throw "invalidCallbackException";
-		request.onload = function(response){request.callback(response,request);}; // sends the response and request to the callback function
+		
+		// create a callback function(response, request) to the function request.calback
+		request.onload = function(response){
+			request.callback(response,request);
+			// if all requests completed
+			if(callbackName && (callbackName == 'Votes' || callbackName == 'MovieList')){
+				if(IMDB.counter.req==1+IMDB.counter.resp++)
+					IMDB.finished();
+			}
+		}; 
 		
 		request.url = IMDB.prefix+request.url;
 		if(request.param)request.data = IMDB.serialize(request.param);
@@ -613,6 +627,22 @@ var IMDB = {
 		request.onerror = function(r){e(r.responseText);};
 		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
 		GM_xmlhttpRequest(request);
+	},
+	/*
+	 * This function is called if all the movies are loaded from the IMDB pages
+	 */
+	finished: function(){
+		l('init: '+onInit);
+		let onInit = IMDB.onInit;
+		IMDB.onInit=null; // reset forced boolean
+		IMDB.counter={}; // reset the counters
+		l('init: '+onInit);
+		if(onInit){ // if the rebuild script was started on page init
+			notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 3000,true);
+			initScript(4); // reinitialize the page
+		} else {
+			window.location.reload(); //reload the page
+		}
 	},
 	/*
 	 * Helper function to parse through a csv file.
