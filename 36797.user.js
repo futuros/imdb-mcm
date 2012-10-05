@@ -537,7 +537,7 @@ var IMDB = {
 		var moviesFound = 0;
 		var categoryId = request.param.list_id; // we have to get the movie list id in here
 		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			movies.add({tid: lineObj.const, categoryid: categoryId, controlid: null});
+			movies.add({tid: lineObj.const, categoryid: categoryId, controlid: 1});
 			moviesFound = index+1;
 		});
 		movies.save();
