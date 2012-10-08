@@ -11,7 +11,6 @@
 // @exclude       	http://i.imdb.com/*
 // @exclude       	http://*imdb.com/images/*
 // @exclude       	http://*imdb.de/images/*
-// @require			http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js
 // @grant			none
 // ==/UserScript==
 
@@ -187,10 +186,9 @@ var notification; // obj to show notifications
 var activePulldown;
 var pulldowns =1000;
 
-this.$ = this.jQuery = jQuery.noConflict(true);
 l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);};
-e = function(v){if(typeof console=='object')console.error(v);};//else{GM_log('[error] '+v);}};
-log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v);}};
+e = function(v){if(typeof console=='object'){console.error(v);}else{GM_log('[error] '+v);}};
+log = function(v){if(typeof console=='object'){console.info(v);}else{GM_log(v);}};
 
 /*
  * Get the movie info based on a address string
@@ -238,7 +236,7 @@ function createCategoriesMenu(movie){
 		li.innerHTML = a[1];
 		menu.appendChild(li);
 		if(movie.hasCategory(a[0])){
-			$(li).addClass('checked');
+			addClassName(li,'checked');
 		}
 		li.addEventListener('click', menuClickHandler, false); 
 	}
@@ -250,14 +248,14 @@ function createCategoriesMenu(movie){
  */
 function menuClickHandler(ev){
 	var node = ev.currentTarget;
-	if($(node).hasClass('busy')){ return false;}
+	if(hasClassName(node, 'busy')){ return false;}
 	movie = getMovie(node.parentNode.getAttribute('movid'));
 	catid = node.getAttribute('catid');
 	l('catid: '+catid);
-	$(node).addClass('busy');
+	addClassName(node, 'busy');
 	
 	// check if the checked status of the form is the same as the movie object.
-	if(movie.hasCategory(catid)!=$(node).hasClass('checked')){
+	if(movie.hasCategory(catid)!=hasClassName(node,'checked')){
 		notification.error('The checkbox status is not the same as the information in the movie cache.</p><p>Reload the page and try again.<br />If the problem persists try rebuilding the cache (context menu OR visit imdb.com/mymovies).');
 		e('(line:250) wrong status for movie: '+movie.id+' and catid: '+catid);
 		ev.preventDefault();
@@ -278,7 +276,7 @@ function menuClickHandler(ev){
  */
 function appendCategoryLinks(node, movie){
 	var isHeader = node.tagName!='A';
-	$(node).addClass('label_node movie'+movie.id);
+	addClassName(node, 'label_node movie'+movie.id);
 	highlighted = updateCategoryLinks(node, movie);
 	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createCategoriesMenu(movie))){
 		pd = document.createElement('div');
@@ -290,12 +288,12 @@ function appendCategoryLinks(node, movie){
 		x = document.createElement('a');
 		x.innerHTML = 'x';
 		x.className = 'imcm_close';
-		x.addEventListener('click', function(ev){$(ev.currentTarget.parentNode).addClass('imcm_hide'); ev.preventDefault();},false);
+		x.addEventListener('click', function(ev){addClassName(ev.currentTarget.parentNode, 'imcm_hide'); ev.preventDefault();},false);
 		pd.appendChild(x);
 		pdlink = document.createElement('a');
 		pdlink.className = 'imcm_pulldown_link';
 		pdlink.innerHTML = '&#9660;';
-		pdlink.addEventListener('click', function(ev){pd=ev.currentTarget.nextSibling;activePulldown=pd;$(pd).removeClass('imcm_hide'); ev.preventDefault();},false);
+		pdlink.addEventListener('click', function(ev){pd=ev.currentTarget.nextSibling;activePulldown=pd;removeClassName(pd, 'imcm_hide'); ev.preventDefault();},false);
 		pdwrap = document.createElement('span');
 		pdwrap.className='imcm_pulldown_wrapper';
 		pdwrap.appendChild(pdlink);
@@ -320,13 +318,17 @@ function updateCategoryLinks(node,movie){
 	var CFG = isHeader ? CONFIG.header : CONFIG.links;
 	
 	// Remove nodes currently added to the nodes parentnode
-	$('.imcm_label', node.parentNode).remove();
+	links = getElementsByClassName('imcm_label', false, node.parentNode);
+	var i = -1;
+	while (current = links[(i+=1)]) {
+		current.parentNode.removeChild(current);
+	}
 	
 	if(movie.isActive()){
 		if(isHeader){
-			$(node).addClass('imcm_highlight_header');
+			addClassName(node, 'imcm_highlight_header');
 		} else {
-			$(node).addClass('imcm_highlight_links');
+			addClassName(node, 'imcm_highlight_links');
 		}
 		
 		// internal function to append label
@@ -334,16 +336,16 @@ function updateCategoryLinks(node,movie){
 			var tag;
 			if(type=='vote'){
 				tag = document.createElement('span');	
-				$(tag).addClass('imcm_vote imcm_label');
-				(value >= 8) ? $(tag).addClass('imcm_high') : ((value <5) ? $(tag).addClass('imcm_low') : $(tag).addClass('imcm_medium'));
+				addClassName(tag, 'imcm_vote imcm_label');
+				(value >= 8) ? addClassName(tag, 'imcm_high') : ((value <5) ? addClassName(tag, 'imcm_low') : addClassName(tag, 'imcm_medium'));
 
 				tag.innerHTML = value;
 			} else {
 				tag = document.createElement('a');	
 				if(isHeader){
-					$(tag).addClass('imcm_label imcm_label_header');
+					addClassName(tag, 'imcm_label imcm_label_header');
 				} else {
-					$(tag).addClass('imcm_label imcm_label_links');
+					addClassName(tag, 'imcm_label imcm_label_links');
 				}
 				var catid = value;
 				if(catid==categories.getId('Recycle Bin'))return;
@@ -368,7 +370,7 @@ function updateCategoryLinks(node,movie){
 				tag.innerHTML = cname;
 			}
 			sibling=node.nextSibling;
-			if(sibling && $(sibling).hasClass('imcm_pulldown_wrapper'))sibling=sibling.nextSibling;
+			if(sibling && hasClassName(sibling, 'imcm_pulldown_wrapper'))sibling=sibling.nextSibling;
 			node.parentNode.insertBefore(tag, sibling);
 		}; // end of function
 		
@@ -383,9 +385,9 @@ function updateCategoryLinks(node,movie){
 		return true;
 	} else {
 		if(isHeader){
-			$(node).removeClass('imcm_highlight_header');
+			removeClassName(node, 'imcm_highlight_header');
 		} else {
-			$(node).removeClass('imcm_highlight_links');
+			removeClassName(node, 'imcm_highlight_links');
 		}
 		return false;
 	}	
@@ -396,10 +398,23 @@ function updateCategoryLinks(node,movie){
  */
 function updateStatus(movie){
 	l('Updating all links and headers for movie: '+movie.id,2);
-	movieNodes = $('.movie'+movie.id);
-	movieNodes.hasClass('label_node').each(function(index,element){updateCategoryLinks(element,movie);});
-	movieNodes.hasClass('imcm_menu').find('li').toggleClass('checked',movie.hasCategory(this.getAttribute('catid')));
-	setTimeout(function(){if(activePulldown){$(activePulldown).addClass('imcm_hide');}},500);
+	movieNodes = getElementsByClassName('movie'+movie.id, null, document);
+	for(var i=0;i<movieNodes.length;i++){
+		node = movieNodes[i];
+		if(hasClassName(node, 'label_node')){
+			updateCategoryLinks(node,movie);
+		} else if(hasClassName(node, 'imcm_menu')){
+			elms = node.getElementsByTagName('li');
+			for (var h=0;h<elms.length;h++){
+				if(movie.hasCategory(elms[h].getAttribute('catid'))){
+					addClassName(elms[h], 'checked');
+				} else {
+					removeClassName(elms[h], 'checked');
+				}
+			}
+		}
+	}	
+	setTimeout(function(){if(activePulldown){addClassName(activePulldown,'imcm_hide');}},500);
 }	
 
 function saveVote(evt){
@@ -555,11 +570,15 @@ var IMDB = {
 			}
 			movies.save();
 			if(request.handle){
-				$(request.handle).toggleClass('checked',request.movie.hasCategory(request.param.list_id));
+				if(request.param.action=='add' && request.movie.hasCategory(request.param.list_id)){
+					addClassName(request.handle, 'checked');
+				} else if(request.param.action==null && !request.movie.hasCategory(request.param.list_id)){
+					removeClassName(request.handle, 'checked');			
+				}
 			}
 			updateStatus(movie);
 		}
-		$(request.handle).removeClass('busy');
+		removeClassName(request.handle, 'busy');
 	},
 	/* yet to implement */
 	reqAuthorId: function(){},
@@ -606,7 +625,7 @@ var IMDB = {
 		}
 		request.onerror = function(r){e(r.responseText);};
 		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
-		xmlhttpRequest(request);
+		GM_xmlhttpRequest(request);
 	},
 	/*
 	 * This function is called if all the movies are loaded from the IMDB pages
@@ -728,7 +747,7 @@ function MovieList(){
 			this.toArray('0278090-1-2:2');
 			return;
 		}
-		var stored = Storage.get('imdb+_'+this.name); //read from browser
+		var stored = GM_getValue('imdb+_'+this.name); //read from browser
 		if(stored != undefined){		
 			this.toArray(stored);
 		}		
@@ -736,7 +755,7 @@ function MovieList(){
 	
 	this.save = function(){
 		var store = this.toString();
-		Storage.set('imdb+_'+this.name, store); //write to browser
+		GM_setValue('imdb+_'+this.name, store); //write to browser
 	}
 	
 	this.clear = function(){
@@ -962,7 +981,7 @@ function CategoryList(){
 			this.array = this.toArray();
 			return;
 		}
-		var stored = Storage.get(this.name); //read from browser
+		var stored = GM_getValue(this.name); //read from browser
 		if(stored != undefined){		
 			this.string = stored;
 			this.array = this.toArray();
@@ -975,7 +994,7 @@ function CategoryList(){
 	this.set = function(value){
 		this.array = value;
 		this.string = this.toString();
-		Storage.set(this.name, this.string); //write to browser
+		GM_setValue(this.name, this.string); //write to browser
 	}
 
 	/*
@@ -1143,7 +1162,7 @@ var Page = {
 			l(activeLinks+' links highlighted',2);
 		}
 		if(CONFIG.pulldown){
-			document.body.addEventListener('click', function(){if(activePulldown!=null){$(activePulldown).addClass('imcm_hide');}}, true);
+			document.body.addEventListener('click', function(){if(activePulldown!=null){addClassName(activePulldown, 'imcm_hide');}}, true);
 		}
 		l('eind links');
 		//Page.start();
@@ -1155,13 +1174,13 @@ var Page = {
 				Page.startTitle();
 			break;
 			case Page.TYPE.mymovies:
-				//Page.startMymovies();
+				Page.startMymovies();
 			break;
 			case Page.TYPE.imdb:
-				//Page.startOther();
+				Page.startOther();
 			break;
 			case Page.TYPE.external:
-				//Page.startExternal();
+				Page.startExternal();
 			break;
 		}
 	},
@@ -1234,56 +1253,160 @@ var Page = {
 	}
 })();
 
-
-var Storage = {
-		prefix: ['', Script.name, ''].join('***'),
-		
-		remove:function(key) {
-		  'use strict';
-		  localStorage.removeItem(Storage.prefix + key);
-		},
-		
-		get:function(key, def) {
-		  'use strict';
-		  let val = localStorage.getItem(Storage.prefix + key);
-		  return (null === val && 'undefined' != typeof def) ? def:val;
-		},
-		
-		list:function() {
-		  'use strict';
-		  let prefixLen = Storage.prefix.length;
-		  let values = [];
-		  for (var i = 0; i < localStorage.length; i++) {
-		    let k = localStorage.key(i);
-		    if (k.substr(0, prefixLen) === Storage.prefix) {
-		      values.push(k.substr(prefixLen));
-		    }
-		  }
-		  return values;
-		},
-		
-		set: function(key, val) {
-		  'use strict';
-		  localStorage.setItem(Storage.prefix + key, val);
-		},
+addClassName = function(element, className) {if(!element.className){element.className=className;return;} var arr = element.className.split(' '); var nameUpper = className.toUpperCase(); for(var i=0; i<arr.length; i++){if(nameUpper==arr[i].toUpperCase())return;}arr.push(className);element.className = arr.join(' ');}
+removeClassName = function(element, className){if(!element.className){return;} var arr = element.className.split(' '); var nameUpper = className.toUpperCase(); for(var i=0; i<arr.length; i++){if(nameUpper==arr[i].toUpperCase()){arr.splice(i,1);i--;}}element.className = arr.join(' ');}  
+hasClassName = function(element, className) {if(!element.className){return false;} var arr = element.className.split(' '); var nameUpper = className.toUpperCase(); for(var i=0; i<arr.length; i++){if(nameUpper==arr[i].toUpperCase())return true;}return false;}
+/*
+        Developed by Robert Nyman, http://www.robertnyman.com
+        Code/licensing: http://code.google.com/p/getelementsbyclassname/
+*/      
+var getElementsByClassName = function (className, tag, elm){
+        if (document.getElementsByClassName) {
+                getElementsByClassName = function (className, tag, elm) {
+                        elm = elm || document;
+                        var elements = elm.getElementsByClassName(className),
+                                nodeName = (tag)? new RegExp("\\b" + tag + "\\b", "i") : null,
+                                returnElements = [],
+                                current;
+                        //if(!tag) return elements;
+						for(var i=0, il=elements.length; i<il; i+=1){
+                                current = elements[i];
+                                if(!nodeName || nodeName.test(current.nodeName)) {
+                                        returnElements.push(current);
+                                }
+                        }
+                        return returnElements;
+                };
+        }
+        else if (document.evaluate) {
+                getElementsByClassName = function (className, tag, elm) {
+                        tag = tag || "*";
+                        elm = elm || document;
+                        var classes = className.split(" "),
+                                classesToCheck = "",
+                                xhtmlNamespace = "http://www.w3.org/1999/xhtml",
+                                namespaceResolver = (document.documentElement.namespaceURI === xhtmlNamespace)? xhtmlNamespace : null,
+                                returnElements = [],
+                                elements,
+                                node;
+                        for(var j=0, jl=classes.length; j<jl; j+=1){
+                                classesToCheck += "[contains(concat(' ', @class, ' '), ' " + classes[j] + " ')]";
+                        }
+                        try     {
+                                elements = document.evaluate(".//" + tag + classesToCheck, elm, namespaceResolver, 0, null);
+                        }
+                        catch (e) {
+                                elements = document.evaluate(".//" + tag + classesToCheck, elm, null, 0, null);
+                        }
+                        while ((node = elements.iterateNext())) {
+                                returnElements.push(node);
+                        }
+                        return returnElements;
+                };
+        }
+        else {
+                getElementsByClassName = function (className, tag, elm) {
+                        tag = tag || "*";
+                        elm = elm || document;
+                        var classes = className.split(" "),
+                                classesToCheck = [],
+                                elements = (tag === "*" && elm.all)? elm.all : elm.getElementsByTagName(tag),
+                                current,
+                                returnElements = [],
+                                match;
+                        for(var k=0, kl=classes.length; k<kl; k+=1){
+                                classesToCheck.push(new RegExp("(^|\\s)" + classes[k] + "(\\s|$)"));
+                        }
+                        for(var l=0, ll=elements.length; l<ll; l+=1){
+                                current = elements[l];
+                                match = false;
+                                for(var m=0, ml=classesToCheck.length; m<ml; m+=1){
+                                        match = classesToCheck[m].test(current.className);
+                                        if (!match) {
+                                                break;
+                                        }
+                                }
+                                if (match) {
+                                        returnElements.push(current);
+                                }
+                        }
+                        return returnElements;
+                };
+        }
+        return getElementsByClassName(className, tag, elm);
 };
 
-function addStyle(aCss) {
-	'use strict';
-	let head = document.getElementsByTagName('head')[0];
-	if (head) {
-		let style = document.createElement('style');
-		style.setAttribute('type', 'text/css');
-		style.textContent = aCss;
-		head.appendChild(style);
-		return style;
+/*---------------------- END Common functions ---------------------------------*/
+
+try
+{
+	function updateCheck(forced)
+	{
+		if ((forced) || (parseInt(GM_getValue('SUC_last_update', '0')) + 86400000 <= (new Date().getTime()))) // Checks once a day (24 h * 60 m * 60 s * 1000 ms)
+		{
+			try
+			{
+				GM_xmlhttpRequest(
+				{
+					method: 'GET',
+					url: 'http://userscripts.org/scripts/source/'+Script.id+'.meta.js?'+new Date().getTime(),
+					headers: {'Cache-Control': 'no-cache'},
+					onload: function(resp)
+					{
+						var remote_version, rt;					
+						rt=resp.responseText;
+						
+						GM_setValue('SUC_last_update', new Date().getTime()+'');
+						remote_version=/@version\s*(.*?)\s*$/m.exec(rt)[1];
+						
+						if (remote_version > Script.version)
+						{
+							if(confirm('There is an update available for the Greasemonkey script "'+Script.name+'."\nWould you like to install now?'))
+							{
+								GM_openInTab('http://userscripts.org/scripts/source/'+Script.id+'.user.js');
+							}
+						}
+						else if (forced)
+						{
+							alert('No update is available for "'+Script.name+'."');
+						}
+					}
+				});
+			}
+			catch (err)
+			{
+				if (forced)
+					alert('An error occurred while checking for updates:\n'+err);
+			}
+		}
 	}
-	return null;
+	GM_registerMenuCommand(Script.name + ' - Update check', function()
+	{
+		updateCheck(true);
+	});
+	updateCheck(false);
 }
+catch(err)
+{}
+
+function GM_addStyle(aCss) {
+	  'use strict';
+	  let head = document.getElementsByTagName('head')[0];
+	  if (head) {
+	    let style = document.createElement('style');
+	    style.setAttribute('type', 'text/css');
+	    style.textContent = aCss;
+	    head.appendChild(style);
+	    return style;
+	  }
+	  return null;
+	}
+
+	const GM_log = console.log;
 
 // This naive implementation will simply fail to do cross-domain requests,
 // just like any javascript in any page would.
-function xmlhttpRequest(aOpts) {
+function GM_xmlhttpRequest(aOpts) {
   'use strict';
   let req = new XMLHttpRequest();
 
@@ -1346,5 +1469,43 @@ function __setupRequestEvent(aOpts, aReq, aEventName) {
   });
 }
 
+const __GM_STORAGE_PREFIX = [
+    '', GM_info.script.namespace, GM_info.script.name, ''].join('***');
+
+// All of the GM_*Value methods rely on DOM Storage's localStorage facility.
+// They work like always, but the values are scoped to a domain, unlike the
+// original functions.  The content page's scripts can access, set, and
+// remove these values.  A
+function GM_deleteValue(aKey) {
+  'use strict';
+  localStorage.removeItem(__GM_STORAGE_PREFIX + aKey);
+}
+
+function GM_getValue(aKey, aDefault) {
+  'use strict';
+  let val = localStorage.getItem(__GM_STORAGE_PREFIX + aKey);
+  if (null === val && 'undefined' != typeof aDefault) return aDefault;
+  return val;
+}
+
+function GM_listValues() {
+  'use strict';
+  let prefixLen = __GM_STORAGE_PREFIX.length;
+  let values = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    let k = localStorage.key(i);
+    if (k.substr(0, prefixLen) === __GM_STORAGE_PREFIX) {
+      values.push(k.substr(prefixLen));
+    }
+  }
+  return values;
+}
+
+function GM_setValue(aKey, aVal) {
+  'use strict';
+  localStorage.setItem(__GM_STORAGE_PREFIX + aKey, aVal);
+}
+function GM_registerMenu(){return;}
+function GM_openInTab(){return;}
 
 Page.init();
