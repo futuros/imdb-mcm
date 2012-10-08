@@ -161,7 +161,8 @@ addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager 
 	+'.imcm_catlist { width: 120px; color: black; text-align:left;}'
 	+'.imcm_hide {display:none; height: 0px;}'
 	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
-	+'.imcm_notification {visibility: hidden; font-family: helvetica, verdana; height: 150px; width: 240px; font-size:.8em; position: fixed; right: 100px; top: 150px; color: #000; padding: 5px; background-color: #1188ff; border: 2px solid #77ddff; border-bottom-color: #2244ff; border-right-color: #2244ff; overflow: auto;}'
+	+'.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);}'
+	+'.error {background-color: red; font-color: white;}'
 	+'.imcm_label_links {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;}'
 	+'.imcm_label_header {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;}'
 	+'.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;}'
@@ -257,7 +258,7 @@ function menuClickHandler(ev){
 	
 	// check if the checked status of the form is the same as the movie object.
 	if(movie.hasCategory(catid)!=$(node).hasClass('checked')){
-		notification.error('The checkbox status is not the same as the information in the movie cache.</p><p>Reload the page and try again.<br />If the problem persists try rebuilding the cache (context menu OR visit imdb.com/mymovies).');
+		Notification.error('The checkbox status is not the same as the information in the movie cache.</p><p>Reload the page and try again.<br />If the problem persists try rebuilding the cache (context menu OR visit imdb.com/mymovies).');
 		e('(line:250) wrong status for movie: '+movie.id+' and catid: '+catid);
 		ev.preventDefault();
 		return false;
@@ -423,10 +424,10 @@ function saveVote(evt){
 function rebuildMovieList(command) {
 	if(command){
 		l('Rebuilding cache - manual request',2);
-		notification.write('Updating the movie list.');
+		Notification.write('Updating the movie list.');
 	} else if(!Page.isType(Page.TYPE.mymovies)){
 		l('Building cache on first script run',1);
-		notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
+		Notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
 	} else {
 		l('Rebuilding cache - on mymovies page',2);	
 	}
@@ -620,7 +621,7 @@ var IMDB = {
 		IMDB.counter={}; // reset the counters
 		l('init: '+onInit);
 		if(onInit){ // if the rebuild script was started on page init
-			notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 3000,true);
+			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
 			Page.initMenus(); // reinitialize the page
 		} else {
 			window.location.reload(); //reload the page
@@ -673,46 +674,47 @@ var IMDB = {
 };
 
 /*
-  * Create a notification object
-  */
-function Notification(){
-	this.notification, this.timer;
-	
-	this.init = function(){
-		this.notification = document.createElement("div");
-		this.notification.className = 'imcm_notification';
-		this.notification.addEventListener('click', this.clicked.bind(this), false);
-		document.body.appendChild(this.notification);
-	}
-	
-	this.write = function(text, maxtime, append){
-		if(this.timer)clearTimeout(this.timer);
-		this.notification.innerHTML = (append)?this.notification.innerHTML+'<br/>'+text : text;
-		this.show();
+ * Create a notification object
+ */
+var Notification = {
+	_timer:null,	
+	_init: function(){
+		Notification._node = $('<div class="imcm_notification"></div>');
+		Notification._node.appendTo('body')
+			.on('click', Notification._hide);
+	},
+	_write:function(text, maxtime, append){
+		if(Notification._timer)clearTimeout(Notification._timer);
+		if(append)
+			Notification._node.append('<br />'+text);
+		else
+			Notification._node.html(text);
+		Notification._show();
 		if(maxtime>0){
-			this.timer=setTimeout(this.hide.bind(this),maxtime);
+			Notification._timer=setTimeout(Notification._hide,maxtime);
 		}
-	}
+	},
+	write:function(text, maxtime, append){
+		if(!Notification._node)Notification._init();
+		Notification._node.removeClass('error');
+		Notification._write(text,maxtime,append);
+	},
+	debug: function(text, maxtime){
+		if(CONFIG.debug.popup)Notification.write(text, maxtime);
+	},
+	error: function(text){
+		if(!Notification._node)Notification._init();
+		Notification._node.addClass('error');
+		Notification._write('<h3>ERROR:</h3><p>'+text+'</p>');
+	},
+	_show: function(){
+		Notification._node.show('slow');
+	},
 	
-	this.debug = function(text, maxtime){
-		if(CONFIG.debug.popup)this.write(text, maxtime);
+	_hide: function(){
+		Notification._node.hide('slow');
 	}
-	this.error = function(text){
-		this.write('<h3>ERROR:</h3><p>'+text+'</p>');
-	}
-	this.show = function(){
-		this.notification.style.visibility = 'visible';
-	}
-	
-	this.hide = function(){
-		this.notification.style.visibility = 'hidden';
-	}
-	
-	this.clicked = function(ev){
-		this.hide();
-	}
-	this.init();
-}
+};
 
 /*
  * Object: Used to manage the movie list
@@ -1051,7 +1053,6 @@ var Page = {
 	init: function(){
 		if(window.location != window.parent.location)return false; //page not in iframe
 		l('Initialize script: '+document.location.href, 2);
-		notification = new Notification();
 		Page.initType();
 	},
 	
@@ -1087,10 +1088,10 @@ var Page = {
 				} else {
 					if(Page.isType(Page.TYPE.external)){
 						l('External page. Send them to IMDB',2);
-						notification.write('You need to visit an IMDB page first before you can use this script on external sites. <a href="http://www.imdb.com/">Imdb.com</a>', 5000);
+						Notification.write('You need to visit an IMDB page first before you can use this script on external sites. <a href="http://www.imdb.com/">Imdb.com</a>');
 					} else {
 						e('(line:1160) No user is logged in');
-						notification.write('You need to <a href="http://www.imdb.com/register/login">log in</a> to IMDb for this script to work ', 5000);
+						Notification.write('You need to <a href="http://www.imdb.com/register/login">log in</a> to IMDb for this script to work ');
 					}
 					return;
 				}
