@@ -221,27 +221,21 @@ function getMovie(id){
  * @return	html	returns a html menu element or false if a menu with the id already exists.
  */
 function createCategoriesMenu(movie){
-	var menu = document.createElement('ul');
-	menu.name = 'cats_'+movie;
-	menu.setAttribute("movid", movie.id);
-	mid = 'changeMenu_'+movie.id;
-	if(document.getElementById(mid)!=null){ // make sure there is only one menu per page
-		return false;
-	}
-	menu.id = mid;
-	menu.className='imcm_menu movie'+movie.id;
+	var menu = $('<ul></ul>', {
+		name:    'cats_'+movie.id,
+		'movid': movie.id,
+		'class': 'imcm_menu movie'+movie.id,
+	});	
 	for(var i in categories.array){
 		a = categories.array[i];
 		if(a[1] == 'Recycle Bin' || a[1] == 'Pending')continue;
-		li = document.createElement('li');
-		li.title = 'Add/Remove: '+a[1];
-		li.setAttribute("catid", a[0]);
-		li.innerHTML = a[1];
-		menu.appendChild(li);
-		if(movie.hasCategory(a[0])){
-			$(li).addClass('checked');
-		}
-		li.addEventListener('click', menuClickHandler, false); 
+		let li = $('<li></li>', {
+			title:  'Add/Remove: '+a[1],
+			'catid': a[0],
+			html: a[1],
+			click: menuClickHandler,
+		}).toggleClass('checked', movie.hasCategory(a[0]))
+		.appendTo(menu);
 	}
 	return menu;
 }
@@ -283,7 +277,7 @@ function appendCategoryLinks(node, movie){
 	highlighted = updateCategoryLinks(node, movie);
 	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createCategoriesMenu(movie))){
 		pd = document.createElement('div');
-		pd.appendChild(changeMenu);
+		//pd.appendChild(changeMenu);
 		pd.className = 'imcm_pulldown imcm_hide imcm_catlist';
 		pd.addEventListener('mouseover', function(ev){activePulldown=null;}, false);
 		pd.addEventListener('mouseout', function(ev){activePulldown=ev.currentTarget;}, false);
@@ -1168,11 +1162,10 @@ var Page = {
 			}
 			appendCategoryLinks(Page.header, Page.movie);
 			l('Adding category menu to the title page', 2);
-			if(!(sideBar = document.getElementById('maindetails_sidebar_bottom'))){e('(line:1237) maindetails_sidebar_bottom could not be found. Could not add categories menu');return false;}
-			var catDiv = document.createElement('div');
-			catDiv.className = 'imcm_catlist aux-content-widget-2';	
-			catDiv.appendChild(createCategoriesMenu(Page.movie));
-			sideBar.insertBefore(catDiv,sideBar.firstChild);
+
+			$('<div />').addClass('imcm_catlist aux-content-widget-2')
+				.append(createCategoriesMenu(Page.movie))
+				.prependTo('#maindetails_sidebar_bottom');
 			
 			if(CONFIG.debug.test)IMDB.test();
 		}
