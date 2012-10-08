@@ -154,15 +154,27 @@ var IMAGES = {
 	loading: 'data:image/gif;base64,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%3D%3D',
 };
 
+//Global variabels
+var movies; // object with all the movies in the my movies list
+var categories; // object with all the categories
+var notification; // obj to show notifications 
+var activePulldown;
+var pulldowns =1000;
+
+this.$ = this.jQuery = jQuery.noConflict(true);
+l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);};
+e = function(v){if(typeof console=='object')console.error(v);};//else{GM_log('[error] '+v);}};
+log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v);}};
+
 // Styles
-addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
+$('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
 	+'.imcm_highlight_header {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
 	+'.imcm_highlight_links {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
 	+'.imcm_catlist { width: 120px; color: black; text-align:left;}'
 	+'.imcm_hide {display:none; height: 0px;}'
 	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
 	+'.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);}'
-	+'.error {background-color: red; font-color: white;}'
+	+'.error {background-color: #F5A4AC; font-color: #DE1024; font-weight:bolder;}'
 	+'.imcm_label_links {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;}'
 	+'.imcm_label_header {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;}'
 	+'.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;}'
@@ -179,19 +191,7 @@ addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager 
 	+'.imcm_menu li:hover{background-color:#ddd!important;}'
 	+'.imcm_menu li.checked{background-color:#eee;background-image:url('+IMAGES.checked+');}'
 	+'.imcm_menu li.busy{background-color:#fff !important;color:gray;cursor:wait!important;background-image:url('+IMAGES.loading+')!important;}'
-);
-
-// Global variabels
-var movies; // object with all the movies in the my movies list
-var categories; // object with all the categories
-var notification; // obj to show notifications 
-var activePulldown;
-var pulldowns =1000;
-
-this.$ = this.jQuery = jQuery.noConflict(true);
-l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);};
-e = function(v){if(typeof console=='object')console.error(v);};//else{GM_log('[error] '+v);}};
-log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v);}};
++'</style>');
 
 /*
  * Get the movie info based on a address string
@@ -1271,18 +1271,6 @@ var Storage = {
 		},
 };
 
-function addStyle(aCss) {
-	'use strict';
-	let head = document.getElementsByTagName('head')[0];
-	if (head) {
-		let style = document.createElement('style');
-		style.setAttribute('type', 'text/css');
-		style.textContent = aCss;
-		head.appendChild(style);
-		return style;
-	}
-	return null;
-}
 
 // This naive implementation will simply fail to do cross-domain requests,
 // just like any javascript in any page would.
