@@ -733,9 +733,8 @@ function MovieList(){
 			return;
 		}
 		var stored = Storage.get('imdb+_'+this.name); //read from browser
-		if(stored != undefined){		
+		if(stored != undefined)		
 			this.toArray(stored);
-		}		
 	}
 	
 	this.save = function(){
@@ -761,7 +760,6 @@ function MovieList(){
 			}
 			while(i>0)
 		}
-
 	}
 	
 	/*
@@ -918,9 +916,8 @@ function MovieObj(){
 	
 	this.getControlId = function(category){
 		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==category){
+			if(this.category[i][0]==category)
 				return this.category[i][1];
-			}
 		}
 		e('(line:833) Failed to get control id for movie:'+this.id+' and category:'+category);
 		return false;
@@ -955,22 +952,16 @@ function CategoryList(){
 	this.string = "";
 	this.array = [];
 	this.name = 'imdb+_'+Page.user+'_categories';
-	var obj = this;
 	
 	/*
 	  * Get the stored value
 	  */
 	this.get = function(){
-		if(CONFIG.debug.test){
-			this.string = '2-test_category';
-			this.array = this.toArray();
-			return;
-		}
 		var stored = Storage.get(this.name); //read from browser
 		if(stored != undefined){		
 			this.string = stored;
 			this.array = this.toArray();
-		}		
+		}
 	}
 	
 	/*
@@ -1208,55 +1199,22 @@ var Page = {
 	}
 };
 
-/*---------------------- START UTIL FUNCTIONS ---------------------------------*/
-(function () {
-    function toArray(pseudoArray) {
-        var result = [];
-        for (var i = 0; i < pseudoArray.length; i++)
-            result.push(pseudoArray[i]);
-        return result;
-    }
-    if(!Function.prototype.bind){
-		Function.prototype.bind = function (object) {
-			var method = this;
-			var oldArguments = toArray(arguments).slice(1);
-			return function () {
-				var newArguments = toArray(arguments);
-				return method.apply(object, oldArguments.concat(newArguments));
-			};
-		}
-	}
-	if(!Function.prototype.bindAsEventListener){
-		Function.prototype.bindAsEventListener = function (object) {
-			var method = this;
-			var oldArguments = toArray(arguments).slice(1);
-			return function (event) {
-				return method.apply(object, [event || window.event].concat(oldArguments));
-			};
-		}
-	}
-})();
-
-
 var Storage = {
 		prefix: ['', Script.name, ''].join('***'),
 		
 		remove:function(key) {
-		  'use strict';
 		  localStorage.removeItem(Storage.prefix + key);
 		},
 		
 		get:function(key, def) {
-		  'use strict';
 		  let val = localStorage.getItem(Storage.prefix + key);
 		  return (null === val && 'undefined' != typeof def) ? def:val;
 		},
 		
 		list:function() {
-		  'use strict';
 		  let prefixLen = Storage.prefix.length;
 		  let values = [];
-		  for (let i = 0; i < localStorage.length; i++) {
+		  for (var i = 0; i < localStorage.length; i++) {
 		    let k = localStorage.key(i);
 		    if (k.substr(0, prefixLen) === Storage.prefix) {
 		      values.push(k.substr(prefixLen));
@@ -1266,16 +1224,13 @@ var Storage = {
 		},
 		
 		set: function(key, val) {
-		  'use strict';
 		  localStorage.setItem(Storage.prefix + key, val);
-		},
+		}
 };
-
 
 // This naive implementation will simply fail to do cross-domain requests,
 // just like any javascript in any page would.
 function xmlhttpRequest(aOpts) {
-  'use strict';
   let req = new XMLHttpRequest();
 
   __setupRequestEvent(aOpts, req, 'abort');
@@ -1305,7 +1260,6 @@ function xmlhttpRequest(aOpts) {
 }
 
 function __setupRequestEvent(aOpts, aReq, aEventName) {
-  'use strict';
   if (!aOpts['on' + aEventName]) return;
 
   aReq.addEventListener(aEventName, function(aEvent) {
@@ -1336,6 +1290,5 @@ function __setupRequestEvent(aOpts, aReq, aEventName) {
     aOpts['on' + aEventName](responseState);
   });
 }
-
 
 Page.init();
