@@ -155,7 +155,7 @@ var IMAGES = {
 };
 
 // Styles
-GM_addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
+addStyle('/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
 	+'.imcm_highlight_header {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
 	+'.imcm_highlight_links {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
 	+'.imcm_catlist { width: 120px; color: black; text-align:left;}'
@@ -254,7 +254,6 @@ function menuClickHandler(ev){
 	movie = getMovie(node.parentNode.getAttribute('movid'));
 	catid = node.getAttribute('catid');
 	l('catid: '+catid);
-	$(node).addClass('busy');
 	
 	// check if the checked status of the form is the same as the movie object.
 	if(movie.hasCategory(catid)!=$(node).hasClass('checked')){
@@ -263,6 +262,7 @@ function menuClickHandler(ev){
 		ev.preventDefault();
 		return false;
 	}
+	$(node).addClass('busy');
 	IMDB.reqMovieAction(movie,catid,node);
 	ev.preventDefault();
 }
@@ -397,8 +397,10 @@ function updateCategoryLinks(node,movie){
 function updateStatus(movie){
 	l('Updating all links and headers for movie: '+movie.id,2);
 	movieNodes = $('.movie'+movie.id);
-	movieNodes.hasClass('label_node').each(function(index,element){updateCategoryLinks(element,movie);});
-	movieNodes.hasClass('imcm_menu').find('li').toggleClass('checked',movie.hasCategory(this.getAttribute('catid')));
+	movieNodes.find('.label_node').each(function(index,element){updateCategoryLinks(element,movie);});
+	movieNodes.find('.imcm_menu').find('li').toggleClass(function(){
+		return (movie.hasCategory($(this).getAttribute('catid'))) ? 'checked' : '';
+	});
 	setTimeout(function(){if(activePulldown){$(activePulldown).addClass('imcm_hide');}},500);
 }	
 
@@ -1253,7 +1255,7 @@ var Storage = {
 		  'use strict';
 		  let prefixLen = Storage.prefix.length;
 		  let values = [];
-		  for (var i = 0; i < localStorage.length; i++) {
+		  for (let i = 0; i < localStorage.length; i++) {
 		    let k = localStorage.key(i);
 		    if (k.substr(0, prefixLen) === Storage.prefix) {
 		      values.push(k.substr(prefixLen));
