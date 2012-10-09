@@ -228,7 +228,6 @@ function createCategoriesMenu(movie){
 	});	
 	for(var i in categories.array){
 		a = categories.array[i];
-		if(a[1] == 'Recycle Bin' || a[1] == 'Pending')continue;
 		let li = $('<li></li>', {
 			title:  'Add/Remove: '+a[1],
 			'catid': a[0],
@@ -314,11 +313,30 @@ function updateCategoryLinks(node,movie){
 
 	if(movie.isActive()){ // if the movie contains a vote or is added to a movielist
 		node.addClass('imcm_highlight');
-		if(CFG.labels.show && movie.category.length>0){
+		if(CFG.labels.show && movie.category.length>0){ // show the movieList labels
 			for(var j=0; j<movie.category.length;j++){
-				appendLabel(node, movie.category[j][0]);
+				// append the movieList label 
+				var settings = {catid: movie.category[j][0]};
+				settings.html = categories.getName(settings.catid);
+				settings.href = '#'+settings.catid;
+				if(CFG.labels.redirect){ // onclick redirect to movielist
+					settings.title = 'Go to the movie list for category: '+settings.html;
+					settings.click = function(){
+						Notification.error('This is not yet working. Movielist id:'+$(this).attr('catid'));	
+						//window.location='http://www.imdb.com/mymovies/list?l='+catid;
+					};
+				} else { // onclick, ask to remove from movielist
+					settings.title = 'Delete movie from category: '+settings.html;
+					settings.click = function(){
+						if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
+							IMDB.reqMovieAction(movie,$(this).attr('catid')); 
+						}
+						return false;
+					};
+				}
+				$('<a />', settings).insertAfter(node);
 			}
-		}
+		} //end: add movieList label
 		// Add a vote to the node
 		if(CFG.vote && movie.vote>0){
 			var className = (movie.vote >= 8) ? 'imcm_high' : ((movie.vote <5) ? 'imcm_low' :'imcm_medium');
@@ -326,43 +344,12 @@ function updateCategoryLinks(node,movie){
 			.html(movie.vote)
 			.insertAfter(node);
 		}
-		return true;
-	} else {
+		return true; // movie should be highlighted
+	} else { // movie should not be highlighted
 		node.removeClass('imcm_highlight');
 		return false;
 	}	
 }
-
-appendLabel=function(node, value){
-	var CFG = !node.is('A') ? CONFIG.header : CONFIG.links;
-	
-	var tag;
-	var catid = value;
-	if(catid==categories.getId('Recycle Bin'))return;
-	var cname = categories.getName(catid);		
-	tag = $('<a />', {
-		href: '#'+catid,
-		'catid': catid,
-		html: cname,
-	});	
-	if(CFG.labels.redirect){
-		tag.title = 'Go to the movie list for category: '+cname;
-		tag.on('click', function(){
-			Notification.error('This is not yet working. Movielist id:'+catid);	
-			//window.location='http://www.imdb.com/mymovies/list?l='+catid;
-		});
-	} else {
-		tag.title = 'Delete movie from category: '+cname;
-		tag.on('click', function(){
-			if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
-				IMDB.reqMovieAction(movie,$(this).attr('catid')); 
-			}
-			return false;
-		});
-	}
-	node.after(tag);
-	return;
-}; 
 
 /*
  * Update the status of the movie for all links refering to the specified movie.
@@ -587,11 +574,9 @@ var IMDB = {
 	 * This function is called if all the movies are loaded from the IMDB pages
 	 */
 	finished: function(){
-		l('init: '+onInit);
 		let onInit = IMDB.onInit;
-		IMDB.onInit=null; // reset forced boolean
+		IMDB.onInit=null; // reset onInit boolean
 		IMDB.counter={}; // reset the counters
-		l('init: '+onInit);
 		if(onInit){ // if the rebuild script was started on page init
 			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
 			Page.initMenus(); // reinitialize the page
@@ -700,10 +685,6 @@ function MovieList(){
 	  * Load the stored value
 	  */
 	this.load = function(){
-		if(CONFIG.debug.test){
-			this.toArray('0278090-1-2:2');
-			return;
-		}
 		var stored = Storage.get('imdb+_'+this.name); //read from browser
 		if(stored != undefined)		
 			this.toArray(stored);
