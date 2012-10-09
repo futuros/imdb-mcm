@@ -309,14 +309,13 @@ function updateCategoryLinks(node,movie){
 	var isHeader = !node.is('A');
 	var CFG = isHeader ? CONFIG.header : CONFIG.links;
 	// Remove nodes currently added to the nodes parentnode
-	node.find('.imcm_label').remove();
-
+	node.parent().find('.imcm_label').remove();
 	if(movie.isActive()){ // if the movie contains a vote or is added to a movielist
 		node.addClass('imcm_highlight');
 		if(CFG.labels.show && movie.category.length>0){ // show the movieList labels
 			for(var j=0; j<movie.category.length;j++){
 				// append the movieList label 
-				var settings = {catid: movie.category[j][0]};
+				var settings = {'class':'imcm_label', catid: movie.category[j][0]};
 				settings.html = categories.getName(settings.catid);
 				settings.href = '#'+settings.catid;
 				if(CFG.labels.redirect){ // onclick redirect to movielist
@@ -357,7 +356,7 @@ function updateCategoryLinks(node,movie){
 function updateStatus(movie){
 	l('Updating all links and headers for movie: '+movie.id,2);
 	movieNodes = $('.movie'+movie.id);
-	movieNodes.find('.label_node').each(function(index,element){updateCategoryLinks(element,movie);});
+	movieNodes.each(function(){updateCategoryLinks($(this),movie);});
 	movieNodes.find('.imcm_menu').find('li').toggleClass(function(){
 		return (movie.hasCategory($(this).getAttribute('catid'))) ? 'checked' : '';
 	});
