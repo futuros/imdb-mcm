@@ -378,24 +378,6 @@ function saveVote(evt){
 }
 
 /*
- * Update the list with movies
- */
-function rebuildMovieList(command) {
-	if(command){
-		l('Rebuilding cache - manual request',2);
-		Notification.write('Updating the movie list.');
-	} else if(!Page.isType(Page.TYPE.mymovies)){
-		l('Building cache on first script run',1);
-		Notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
-	} else {
-		l('Rebuilding cache - on mymovies page',2);	
-	}
-	movies.clear();
-	IMDB.reqVotes();
-	IMDB.reqLists(!command); //!command -> means initScript
-}
-
-/*
  * IMDB API object
  * This object is used for interaction with the IMDB website through AJAX
  * Every getMethodName should call the xhr function which sends the response to parseMethodName.
@@ -442,8 +424,7 @@ var IMDB = {
 		l(votesFound+' votes found');
 		movies.save();
 	},
-	reqLists: function(onInit){
-		if(onInit)IMDB.onInit=true;
+	reqLists: function(){
 		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
 		request.param = {'tconst':'tt0278090'};
 		IMDB.xhr(request);
@@ -569,6 +550,19 @@ var IMDB = {
 		request.onerror = function(r){e(r.responseText);};
 		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
 		xmlhttpRequest(request);
+	},
+	rebuild: function(onInit){
+		if(onInit){ // Automatic request on script init
+			IMDB.onInit=true;
+			l('Building cache on first script run',1);
+			Notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
+		} else { // Manuel request
+			l('Rebuilding cache - manual request',2);
+			Notification.write('Updating the movie list.');
+		}
+		movies.clear();
+		IMDB.reqVotes();
+		IMDB.reqLists();
 	},
 	/*
 	 * This function is called if all the movies are loaded from the IMDB pages
@@ -1064,8 +1058,7 @@ var Page = {
 		l('Categories loaded from cache: '+categories.array.length,1);
 		if(movies.array.length==0 || categories.array.length==0){
 			l('Movies OR categories are empty. Rebuilding cache',2);
-			//IMDB.rebuild(false);
-			rebuildMovieList();
+			IMDB.rebuild(true);
 			return;
 		} else {
 			Page.initLinks();
