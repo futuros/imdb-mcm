@@ -1,0 +1,31 @@
+Change IMDB.getMovieList to obtain the list_item_id.
+	We need to get the paginated html results
+	
+catch User voting via native UI
+catch add/remove movie via native UI
+
+Add a menu to the Top Navbar with:
+	- rebuild cache
+	- check version
+	- config
+
+Add a configuration script
+@require version script
+
+use jquery.ajax
+
+use event on movieObj to update all movie instances instead of updateStatus function
+
+pulldown menus should close on click outside
+	close pulldown on opening other pulldown
+pulldown menus should close on click [x]
+
+---
+UI: Change look and feel of
+---
+Notification
+Labels
+Vote on label (rounded corners for one)
+Pulldown menus
+Sidebar categoryMenu
+Heading on title page
