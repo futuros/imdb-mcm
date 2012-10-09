@@ -364,19 +364,6 @@ function updateStatus(movie){
 	setTimeout(function(){if(activePulldown){$(activePulldown).addClass('imcm_hide');}},500);
 }	
 
-function saveVote(evt){
-	vu = document.getElementById('voteuser');
-	if(!vu)return false;
-	vote = (vote = vu.innerHTML.match(/^(\d{1,2})$/)) ? parseInt(vote[1]) : 0;
-	movie = getMovie(Page.movie.id);
-	if(movie.vote!=vote){
-		movie.setVote(vote);
-		movies.save();
-		l('Vote changed to '+movie.vote,1);
-		updateStatus(movie);
-	}
-}
-
 /*
  * IMDB API object
  * This object is used for interaction with the IMDB website through AJAX
@@ -560,7 +547,7 @@ var IMDB = {
 			l('Rebuilding cache - manual request',2);
 			Notification.write('Updating the movie list.');
 		}
-		movies.clear();
+		movies.clear(); // clear the current cache.
 		IMDB.reqVotes();
 		IMDB.reqLists();
 	},
@@ -1106,10 +1093,25 @@ var Page = {
 		l('start title page');
 		if(Page.movie = getMovieInfo(Page.loc)){ //Title page
 			Page.header = $('h1').first();
+			
 			// when the user votes the page should be updated
-			if(vu = document.getElementById('voteuser')){
-				vu.addEventListener('DOMNodeInserted',  function(){setTimeout(saveVote,0);}, true); // settimeout is required due to a bug in greasemonkey
-			}
+			var submitted = false;
+			var deleting = false;
+			$('.rating-cancel').on('click', function(){deleting =true;});
+			$('.rating-cancel').on('DOMSubtreeModified', function(){
+				if($(this).hasClass('rating-pending')){ // a vote has been submitted, waiting for result
+					submitted=true;
+				} else if(submitted){ // node no longer marked as pending, but something was submitted
+					vote = (deleting)?0:$(this).prev().children().first().html();
+					submitted=deleting=false;
+					if(Page.movie.vote!=vote){
+						Page.movie.setVote(vote);
+						movies.save();
+						l('Vote changed to '+Page.movie.vote,1);
+						updateStatus(Page.movie);
+					}
+				} // else {do nothing, just a hover over the votes}
+			});
 			appendCategoryLinks(Page.header, Page.movie);
 			l('Adding category menu to the title page', 2);
 
