@@ -168,8 +168,8 @@ log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v)
 
 // Styles
 $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
-	+'.imcm_highlight_header {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
-	+'.imcm_highlight_links {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
+	+'h1.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
+	+'a.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
 	+'.imcm_catlist { width: 120px; color: black; text-align:left;}'
 	+'.imcm_hide {display:none; height: 0px;}'
 	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
@@ -311,66 +311,58 @@ function updateCategoryLinks(node,movie){
 	var CFG = isHeader ? CONFIG.header : CONFIG.links;
 	// Remove nodes currently added to the nodes parentnode
 	node.find('.imcm_label').remove();
-	// internal function to append label
-	appendLabel=function(nd, type, value){
-		var tag;
-		if(type=='vote'){
-			tag = $('<span />').addClass('imcm_vote imcm_label')
-			.html(value);
-			(value >= 8) ? tag.addClass('imcm_high') : ((value <5) ? tag.addClass('imcm_low') : tag.addClass('imcm_medium'));
-		} else {
-			var catid = value;
-			if(catid==categories.getId('Recycle Bin'))return;
-			var cname = categories.getName(catid);		
-			tag = $('<a />', {
-				href: '#'+catid,
-				'catid': catid,
-				html: cname,
-			});	
-			if(CFG.labels.redirect){
-				tag.title = 'Go to the movie list for category: '+cname;
-				tag.on('click', function(ev){
-					Notification.error('This is not yet working. Movielist id:'+catid);	
-					//window.location='http://www.imdb.com/mymovies/list?l='+catid;
-				});
-			} else {
-				tag.title = 'Delete movie from category: '+cname;
-				tag.on('click', function(){
-					if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
-						IMDB.reqMovieAction(movie,$(this).attr('catid')); 
-					}
-					return false;
-				});
-			}
-		}
-		node.after(tag);
-		return;
-	}; // end of function
 
-	if(movie.isActive()){
-		if(isHeader){
-			node.addClass('imcm_highlight_header');
-		} else {
-			node.addClass('imcm_highlight_links');
-		}
+	if(movie.isActive()){ // if the movie contains a vote or is added to a movielist
+		node.addClass('imcm_highlight');
 		if(CFG.labels.show && movie.category.length>0){
 			for(var j=0; j<movie.category.length;j++){
-				this.appendLabel(node, 'cat', movie.category[j][0]);
+				appendLabel(node, movie.category[j][0]);
 			}
 		}
+		// Add a vote to the node
 		if(CFG.vote && movie.vote>0){
-			this.appendLabel(node, 'vote', movie.vote);
+			var className = (movie.vote >= 8) ? 'imcm_high' : ((movie.vote <5) ? 'imcm_low' :'imcm_medium');
+			tag = $('<span />').addClass('imcm_vote imcm_label '+className)
+			.html(movie.vote)
+			.insertAfter(node);
 		}
 		return true;
 	} else {
-		if(isHeader){
-			node.removeClass('imcm_highlight_header');
-		} else {
-			node.removeClass('imcm_highlight_links');
-		}
+		node.removeClass('imcm_highlight');
 		return false;
 	}	
 }
+
+appendLabel=function(node, value){
+	var CFG = !node.is('A') ? CONFIG.header : CONFIG.links;
+	
+	var tag;
+	var catid = value;
+	if(catid==categories.getId('Recycle Bin'))return;
+	var cname = categories.getName(catid);		
+	tag = $('<a />', {
+		href: '#'+catid,
+		'catid': catid,
+		html: cname,
+	});	
+	if(CFG.labels.redirect){
+		tag.title = 'Go to the movie list for category: '+cname;
+		tag.on('click', function(){
+			Notification.error('This is not yet working. Movielist id:'+catid);	
+			//window.location='http://www.imdb.com/mymovies/list?l='+catid;
+		});
+	} else {
+		tag.title = 'Delete movie from category: '+cname;
+		tag.on('click', function(){
+			if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
+				IMDB.reqMovieAction(movie,$(this).attr('catid')); 
+			}
+			return false;
+		});
+	}
+	node.after(tag);
+	return;
+}; 
 
 /*
  * Update the status of the movie for all links refering to the specified movie.
