@@ -175,8 +175,8 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
 	+'.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);}'
 	+'.error {background-color: #F5A4AC; font-color: #DE1024; font-weight:bolder;}'
-	+'.imcm_label_links {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;}'
-	+'.imcm_label_header {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;}'
+	+'a.label_node .imcm_label {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;}'
+	+'h1.label_node .imcm_label {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;}'
 	+'.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;}'
 	+'#tn15title .imcm_vote {font-size:1.5em;font-weight:bold;padding-right:5px;padding-left:5px; margin-left:0px;}'
 	+'.imcm_high {background-color: '+CONFIG.vote.high.bg+'; color: '+CONFIG.vote.high.text+';}'
@@ -243,23 +243,20 @@ function createCategoriesMenu(movie){
 /*
  *  Click handler for movie list menu's
  */
-function menuClickHandler(ev){
-	var node = ev.currentTarget;
-	if($(node).hasClass('busy')){ return false;}
-	movie = getMovie(node.parentNode.getAttribute('movid'));
-	catid = node.getAttribute('catid');
-	l('catid: '+catid);
+function menuClickHandler(){
+	node = $(this);
+	if(node.hasClass('busy')){ return false;}
+	movie = getMovie(node.parent().attr('movid'));
 	
 	// check if the checked status of the form is the same as the movie object.
-	if(movie.hasCategory(catid)!=$(node).hasClass('checked')){
+	if(movie.hasCategory(node.attr('catid'))!=node.hasClass('checked')){
 		Notification.error('The checkbox status is not the same as the information in the movie cache.</p><p>Reload the page and try again.<br />If the problem persists try rebuilding the cache (context menu OR visit imdb.com/mymovies).');
-		e('(line:250) wrong status for movie: '+movie.id+' and catid: '+catid);
-		ev.preventDefault();
+		e('(line:250) wrong status for movie: '+movie.id+' and catid: '+node.attr('catid'));
 		return false;
 	}
-	$(node).addClass('busy');
-	IMDB.reqMovieAction(movie,catid,node);
-	ev.preventDefault();
+	node.addClass('busy');
+	IMDB.reqMovieAction(movie,node.attr('catid'),node);
+	return false;
 }
 
 /*
@@ -272,30 +269,29 @@ function menuClickHandler(ev){
  * @type boolean
  */
 function appendCategoryLinks(node, movie){
-	var isHeader = node.tagName!='A';
-	$(node).addClass('label_node movie'+movie.id);
+	var isHeader = !node.is('A');
+	node.addClass('label_node movie'+movie.id);
 	highlighted = updateCategoryLinks(node, movie);
 	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createCategoriesMenu(movie))){
-		pd = document.createElement('div');
-		//pd.appendChild(changeMenu);
-		pd.className = 'imcm_pulldown imcm_hide imcm_catlist';
-		pd.addEventListener('mouseover', function(ev){activePulldown=null;}, false);
-		pd.addEventListener('mouseout', function(ev){activePulldown=ev.currentTarget;}, false);
-		pd.style.zIndex=pulldowns--;
-		x = document.createElement('a');
-		x.innerHTML = 'x';
-		x.className = 'imcm_close';
-		x.addEventListener('click', function(ev){$(ev.currentTarget.parentNode).addClass('imcm_hide'); ev.preventDefault();},false);
-		pd.appendChild(x);
-		pdlink = document.createElement('a');
-		pdlink.className = 'imcm_pulldown_link';
-		pdlink.innerHTML = '&#9660;';
-		pdlink.addEventListener('click', function(ev){pd=ev.currentTarget.nextSibling;activePulldown=pd;$(pd).removeClass('imcm_hide'); ev.preventDefault();},false);
-		pdwrap = document.createElement('span');
-		pdwrap.className='imcm_pulldown_wrapper';
-		pdwrap.appendChild(pdlink);
-		pdwrap.appendChild(pd);
-		node.parentNode.insertBefore(pdwrap, node.nextSibling);
+		pd = $('<div />', {
+			'class':'imcm_pulldown imcm_hide imcm_catlist',
+			mouseover: function(ev){activePulldown=null;}, 
+			mouseout: function(ev){activePulldown=this;},
+			css: {'zIndex': pulldowns--}
+		})
+		.append(changeMenu)
+		.append('<a>x</a>', {'class':'imcm_close',
+			click: function(){$(this).parent().addClass('imcm_hide');return false;}
+		});
+		pdwrap = $('<span />').addClass('imcm_pulldown_wrapper')
+		.append(pd);
+		
+		
+		$('<a />', {'class':'imcm_pulldown_link',
+			html: 'v',
+			click: function(){var ap=$(this).parent().find('.imcm_pulldown'); activePulldown=ap;ap.removeClass('imcm_hide');return false;}
+		}).appendTo(pdwrap);
+		node.after(pdwrap);
 	}
 	return highlighted;
 }
@@ -311,62 +307,52 @@ function appendCategoryLinks(node, movie){
  */
 
 function updateCategoryLinks(node,movie){
-	var isHeader = node.tagName!='A';
+	var isHeader = !node.is('A');
 	var CFG = isHeader ? CONFIG.header : CONFIG.links;
-	
 	// Remove nodes currently added to the nodes parentnode
-	$('.imcm_label', node.parentNode).remove();
-	
+	node.find('.imcm_label').remove();
+	// internal function to append label
+	appendLabel=function(nd, type, value){
+		var tag;
+		if(type=='vote'){
+			tag = $('<span />').addClass('imcm_vote imcm_label')
+			.html(value);
+			(value >= 8) ? tag.addClass('imcm_high') : ((value <5) ? tag.addClass('imcm_low') : tag.addClass('imcm_medium'));
+		} else {
+			var catid = value;
+			if(catid==categories.getId('Recycle Bin'))return;
+			var cname = categories.getName(catid);		
+			tag = $('<a />', {
+				href: '#'+catid,
+				'catid': catid,
+				html: cname,
+			});	
+			if(CFG.labels.redirect){
+				tag.title = 'Go to the movie list for category: '+cname;
+				tag.on('click', function(ev){
+					Notification.error('This is not yet working. Movielist id:'+catid);	
+					//window.location='http://www.imdb.com/mymovies/list?l='+catid;
+				});
+			} else {
+				tag.title = 'Delete movie from category: '+cname;
+				tag.on('click', function(){
+					if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
+						IMDB.reqMovieAction(movie,$(this).attr('catid')); 
+					}
+					return false;
+				});
+			}
+		}
+		node.after(tag);
+		return;
+	}; // end of function
+
 	if(movie.isActive()){
 		if(isHeader){
-			$(node).addClass('imcm_highlight_header');
+			node.addClass('imcm_highlight_header');
 		} else {
-			$(node).addClass('imcm_highlight_links');
+			node.addClass('imcm_highlight_links');
 		}
-		
-		// internal function to append label
-		appendLabel = function(nd, type, value){
-			var tag;
-			if(type=='vote'){
-				tag = document.createElement('span');	
-				$(tag).addClass('imcm_vote imcm_label');
-				(value >= 8) ? $(tag).addClass('imcm_high') : ((value <5) ? $(tag).addClass('imcm_low') : $(tag).addClass('imcm_medium'));
-
-				tag.innerHTML = value;
-			} else {
-				tag = document.createElement('a');	
-				if(isHeader){
-					$(tag).addClass('imcm_label imcm_label_header');
-				} else {
-					$(tag).addClass('imcm_label imcm_label_links');
-				}
-				var catid = value;
-				if(catid==categories.getId('Recycle Bin'))return;
-				var cname = categories.getName(catid);		
-				tag.setAttribute("href",'#'+catid);
-				tag.setAttribute("catid", catid);
-				if(CFG.labels.redirect){
-					tag.title = 'Go to the movie list for category: '+cname;
-					tag.addEventListener('click', function(ev){
-							ev.preventDefault();
-							window.location='http://www.imdb.com/mymovies/list?l='+catid;
-					}, false);
-				} else {
-					tag.title = 'Delete movie from category: '+cname;
-					tag.addEventListener('click', function(ev){
-						var node = ev.currentTarget;
-						if(!CFG.labels.confirmation || confirm('Delete movie from '+node.innerHTML+'?')){
-							IMDB.reqMovieAction(movie,node.getAttribute('catid')); 
-						}
-					},false);
-				}
-				tag.innerHTML = cname;
-			}
-			sibling=node.nextSibling;
-			if(sibling && $(sibling).hasClass('imcm_pulldown_wrapper'))sibling=sibling.nextSibling;
-			node.parentNode.insertBefore(tag, sibling);
-		}; // end of function
-		
 		if(CFG.labels.show && movie.category.length>0){
 			for(var j=0; j<movie.category.length;j++){
 				this.appendLabel(node, 'cat', movie.category[j][0]);
@@ -378,9 +364,9 @@ function updateCategoryLinks(node,movie){
 		return true;
 	} else {
 		if(isHeader){
-			$(node).removeClass('imcm_highlight_header');
+			node.removeClass('imcm_highlight_header');
 		} else {
-			$(node).removeClass('imcm_highlight_links');
+			node.removeClass('imcm_highlight_links');
 		}
 		return false;
 	}	
@@ -1115,17 +1101,14 @@ var Page = {
 	initLinks: function(){
 		Page.start(); //we need to start this first otherwise the script fails
 		l('init links on page',2);
-		var links = document.getElementsByTagName('a');
 		linkCount=0;
 		activeLinks=0;
-		l('links found:'+links.length);
-		for (var i=0; i < links.length; i++) {
-			var link = links[i];
-			if(movie = getMovieInfo(link.href)){
-				if(appendCategoryLinks(link, movie)){activeLinks++;}
+		$('A').each(function(){
+			if(movie = getMovieInfo(this.href)){
+				if(appendCategoryLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
-		}
+		});
 		if(linkCount){
 			l(linkCount+' imdb links found',1);
 			l(activeLinks+' links highlighted',2);
@@ -1155,7 +1138,8 @@ var Page = {
 	},
 	startTitle: function(){
 		l('start title page');
-		if(Page.initHeader()){ //Title page
+		if(Page.movie = getMovieInfo(Page.loc)){ //Title page
+			Page.header = $('h1').first();
 			// when the user votes the page should be updated
 			if(vu = document.getElementById('voteuser')){
 				vu.addEventListener('DOMNodeInserted',  function(){setTimeout(saveVote,0);}, true); // settimeout is required due to a bug in greasemonkey
@@ -1169,23 +1153,6 @@ var Page = {
 			
 			if(CONFIG.debug.test)IMDB.test();
 		}
-	},
-	initHeader: function(){
-		l('init header');
-		if(!Page.isType(Page.TYPE.title) || !Page.initMovie())return false;
-		h1s = document.getElementsByTagName('h1');
-		if(h1s.length==1){
-			Page.header=h1s[0];
-			l('header found');
-			return true;
-		} else {
-			e('(line:801) no header found on page with type title');
-			return false;
-		}
-	},
-	initMovie: function(){
-		l('init movie');
-		return Page.movie = getMovieInfo(Page.loc);
 	},
 	isType: function(type){
 		return Page.type==type;
