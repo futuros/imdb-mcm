@@ -103,7 +103,7 @@ log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v)
 $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
 	+'h1.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
 	+'a.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
-	+'.imcm_catlist { width: 120px; color: black; text-align:left;}'
+	+'.imcm_catlist { width: auto; color: black; text-align:left;}'
 	+'.imcm_hide {display:none; height: 0px;}'
 	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
 	+'.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);}'
@@ -118,8 +118,8 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	+'.imcm_pulldown_wrapper {position: relative;}'
 	+'.imcm_pulldown_link {position: relative;padding:0 5px 0 5px; font-size:.8em;cursor:pointer;}'
 	+'.imcm_pulldown {position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;}'
-	+'.imcm_close {position:absolute; top:2px; right:5px; font-weight:bolder; background-color: white;cursor:pointer;}'
-	+'.imcm_menu {width:120px;margin: 0; padding:0px; list-style: none;}'
+	+'.imcm_pulldown a {position:absolute; top:2px; right:2px; font-size:12px; line-height:12px; font-weight:bolder; background-color: white;cursor:pointer;border:1px solid black; border-radius: 10px 10px 10px 10px;padding:0 3px 1px;}'
+	+'.imcm_menu { min-width:130px;margin: 0; padding:0px; list-style: none;}'
 	+'.imcm_menu li{font-weight:bolder;background-image:url('+IMAGES.unchecked+');padding: 2px 21px;background-repeat:no-repeat;background-position:2px center;height:16px;display:block;cursor:pointer;cursor:hand;margin:auto;}'
 	+'.imcm_menu li:hover{background-color:#ddd!important;}'
 	+'.imcm_menu li.checked{background-color:#eee;background-image:url('+IMAGES.checked+');}'
@@ -205,25 +205,20 @@ function appendCategoryLinks(node, movie){
 	node.addClass('label_node movie'+movie.id);
 	highlighted = updateCategoryLinks(node, movie);
 	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createCategoriesMenu(movie))){
-		pd = $('<div />', {
-			'class':'imcm_pulldown imcm_hide imcm_catlist',
-			mouseover: function(ev){activePulldown=null;}, 
-			mouseout: function(ev){activePulldown=this;},
-			css: {'zIndex': pulldowns--}
-		})
-		.append(changeMenu)
-		.append('<a>x</a>', {'class':'imcm_close',
-			click: function(){$(this).parent().addClass('imcm_hide');return false;}
-		});
-		pdwrap = $('<span />').addClass('imcm_pulldown_wrapper')
-		.append(pd);
-		
-		
-		$('<a />', {'class':'imcm_pulldown_link',
-			html: 'v',
-			click: function(){var ap=$(this).parent().find('.imcm_pulldown'); activePulldown=ap;ap.removeClass('imcm_hide');return false;}
-		}).appendTo(pdwrap);
-		node.after(pdwrap);
+		$('<span />').addClass('imcm_pulldown_wrapper')
+		.append(
+			$('<div />', {
+				'class':'imcm_pulldown imcm_hide imcm_catlist',
+				mouseover: function(ev){activePulldown=null;}, 
+				mouseout: function(ev){activePulldown=this;},
+				css: {'zIndex': pulldowns--}
+			})
+			.append(changeMenu)
+			.append($('<a>x</a>').click(function(){$(this).parent().addClass('imcm_hide');return false;}))
+		).append(
+			$('<a class="imcm_pulldown_link">&#9660;</a>')
+			.click(function(){var ap=$(this).parent().find('.imcm_pulldown'); activePulldown=ap;ap.removeClass('imcm_hide');return false;})
+		).insertAfter(node);
 	}
 	return highlighted;
 }
