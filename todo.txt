@@ -12,8 +12,6 @@ Version checker:
 @require version script
 
 Pulldowns:
-	pulldown menus should close on click outside
-	close pulldown on opening other pulldown
-	pulldown menus should close on click [x]
+	Labels get added to pulldown after change
 	Resolve issues with multiple links to the same movie. Currently only the first one gets an pulldown menu otherwise there will be problems with duplicate form id's
 	Get rid of hardcoded pulldown limit (currently 1000) / activePulldown	

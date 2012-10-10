@@ -208,17 +208,18 @@ function appendCategoryLinks(node, movie){
 		$('<span />').addClass('imcm_pulldown_wrapper')
 		.append(
 			$('<div />', {
-				'class':'imcm_pulldown imcm_hide imcm_catlist',
+				'class':'imcm_pulldown imcm_catlist',
 				mouseover: function(ev){activePulldown=null;}, 
 				mouseout: function(ev){activePulldown=this;},
 				css: {'zIndex': pulldowns--}
-			})
+			}).hide()
 			.append(changeMenu)
-			.append($('<a>x</a>').click(function(){$(this).parent().addClass('imcm_hide');return false;}))
+			.append($('<a>x</a>').click(function(){$(this).parent().hide('slow');activePulldown=null;return false;}))
 		).append(
 			$('<a class="imcm_pulldown_link">&#9660;</a>')
-			.click(function(){var ap=$(this).parent().find('.imcm_pulldown'); activePulldown=ap;ap.removeClass('imcm_hide');return false;})
+			.click(function(){var ap=$(this).parent().find('.imcm_pulldown');if(activePulldown){$(activePulldown).hide();} activePulldown=ap;ap.show('slow');return false;})
 		).insertAfter(node);
+		$(document).click(function(){$(activePulldown).hide('slow');activePulldown=null;});
 	}
 	return highlighted;
 }
@@ -288,7 +289,7 @@ function updateStatus(movie){
 	movieNodes.find('.imcm_menu').find('li').toggleClass(function(){
 		return (movie.hasCategory($(this).getAttribute('catid'))) ? 'checked' : '';
 	});
-	setTimeout(function(){if(activePulldown){$(activePulldown).addClass('imcm_hide');}},500);
+	//setTimeout(function(){if(activePulldown){$(activePulldown).hide('slow');}},1500);
 }	
 
 /*
