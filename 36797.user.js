@@ -90,7 +90,6 @@ var IMAGES = {
 //Global variabels
 var movies; // object with all the movies in the my movies list
 var categories; // object with all the categories
-var notification; // obj to show notifications 
 var activePulldown;
 var pulldowns =1000;
 
@@ -100,31 +99,31 @@ e = function(v){if(typeof console=='object')console.error(v);};//else{GM_log('[e
 log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v);}};
 
 // Styles
-$('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */'
-	+'h1.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';}'
-	+'a.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';}'
-	+'.imcm_catlist { width: auto; color: black; text-align:left;}'
-	+'.imcm_hide {display:none; height: 0px;}'
-	+'.imcm_failed {border-color: red!important; background-color:pink!important;}'
-	+'.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);}'
-	+'.error {background-color: #F5A4AC; font-color: #DE1024; font-weight:bolder;}'
-	+'a.label_node .imcm_label {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;}'
-	+'h1.label_node .imcm_label {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;}'
-	+'.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;}'
-	+'#tn15title .imcm_vote {font-size:1.5em;font-weight:bold;padding-right:5px;padding-left:5px; margin-left:0px;}'
-	+'.imcm_high {background-color: '+CONFIG.vote.high.bg+'; color: '+CONFIG.vote.high.text+';}'
-	+'.imcm_medium {background-color: '+CONFIG.vote.medium.bg+'; color: '+CONFIG.vote.medium.text+';}'
-	+'.imcm_low {background-color: '+CONFIG.vote.low.bg+'; color: '+CONFIG.vote.high.text+';}'
-	+'.imcm_pulldown_wrapper {position: relative;}'
-	+'.imcm_pulldown_link {position: relative;padding:0 5px 0 5px; font-size:.8em;cursor:pointer;}'
-	+'.imcm_pulldown {position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;}'
-	+'.imcm_pulldown a {position:absolute; top:2px; right:2px; font-size:12px; line-height:12px; font-weight:bolder; background-color: white;cursor:pointer;border:1px solid black; border-radius: 10px 10px 10px 10px;padding:0 3px 1px;}'
-	+'.imcm_menu { min-width:130px;margin: 0; padding:0px; list-style: none;}'
-	+'.imcm_menu li{font-weight:bolder;background-image:url('+IMAGES.unchecked+');padding: 2px 21px;background-repeat:no-repeat;background-position:2px center;height:16px;display:block;cursor:pointer;cursor:hand;margin:auto;}'
-	+'.imcm_menu li:hover{background-color:#ddd!important;}'
-	+'.imcm_menu li.checked{background-color:#eee;background-image:url('+IMAGES.checked+');}'
-	+'.imcm_menu li.busy{background-color:#fff !important;color:gray;cursor:wait!important;background-image:url('+IMAGES.loading+')!important;}'
-+'</style>');
+$('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */\
+	h1.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';} \
+	a.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';} \
+	.imcm_catlist { width: auto; color: black; text-align:left;} \
+	.imcm_hide {display:none; height: 0px;} \
+	.imcm_failed {border-color: red!important; background-color:pink!important;} \
+	.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);} \
+	.error {background-color: #F5A4AC; font-color: #DE1024; font-weight:bolder;} \
+	a.label_node .imcm_label {padding: 5px; color: '+CONFIG.links.labels.color.text+' !important;} \
+	h1.label_node .imcm_label {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;} \
+	.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;} \
+	#tn15title .imcm_vote {font-size:1.5em;font-weight:bold;padding-right:5px;padding-left:5px; margin-left:0px;} \
+	.imcm_high {background-color: '+CONFIG.vote.high.bg+'; color: '+CONFIG.vote.high.text+';} \
+	.imcm_medium {background-color: '+CONFIG.vote.medium.bg+'; color: '+CONFIG.vote.medium.text+';} \
+	.imcm_low {background-color: '+CONFIG.vote.low.bg+'; color: '+CONFIG.vote.high.text+';} \
+	.imcm_pulldown_wrapper {position: relative;} \
+	.imcm_pulldown_link {position: relative;padding:0 5px 0 5px; font-size:.8em;cursor:pointer;} \
+	.imcm_pulldown {position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;} \
+	.imcm_pulldown a {position:absolute; top:2px; right:2px; font-size:12px; line-height:12px; font-weight:bolder; background-color: white;cursor:pointer;border:1px solid black; border-radius: 10px 10px 10px 10px;padding:0 3px 1px;} \
+	.imcm_menu { min-width:130px;margin: 0; padding:0px; list-style: none;} \
+	.imcm_menu li{font-weight:bolder;background-image:url('+IMAGES.unchecked+');padding: 2px 21px;background-repeat:no-repeat;background-position:2px center;height:16px;display:block;cursor:pointer;cursor:hand;margin:auto;} \
+	.imcm_menu li:hover{background-color:#ddd!important;} \
+	.imcm_menu li.checked{background-color:#eee;background-image:url('+IMAGES.checked+');} \
+	.imcm_menu li.busy{background-color:#fff !important;color:gray;cursor:wait!important;background-image:url('+IMAGES.loading+')!important;} \
+</style>');
 
 /*
  * Get the movie info based on a address string
@@ -284,12 +283,10 @@ function updateCategoryLinks(node,movie){
  */
 function updateStatus(movie){
 	l('Updating all links and headers for movie: '+movie.id,2);
-	movieNodes = $('.movie'+movie.id);
-	movieNodes.each(function(){updateCategoryLinks($(this),movie);});
-	movieNodes.find('.imcm_menu').find('li').toggleClass(function(){
-		return (movie.hasCategory($(this).getAttribute('catid'))) ? 'checked' : '';
+	$('.movie'+movie.id+'.label_node').each(function(){updateCategoryLinks($(this),movie);});
+	$('.movie'+movie.id+'.imcm_menu').find('li').each(function(){
+		$(this).toggleClass('checked', movie.hasCategory($(this).attr('catid')));
 	});
-	//setTimeout(function(){if(activePulldown){$(activePulldown).hide('slow');}},1500);
 }	
 
 /*
