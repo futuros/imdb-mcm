@@ -21,83 +21,16 @@ var Script = {
 	id:		36797
 };
 
-/* Changelog:
-3.0.0 ()
-	- Fix: 		Make the script work again with the new imdb layout and movie lists
-2.1.3 (2010.05.13)
-	- Fix: 		Add extra debug level for better diagnostics
-	- Fix:		More feedback in notification window when rebuilding cache
-	- Fix:		Better debug info when running script
-	- Features:	New configuration options (see config variable)
-2.1.2 (2009.09.25)
-	- Bugfix:	The new menu design broke the code to obtain the username
-2.1.1 (2009.09.02)
-	- Bugfix:	Problem with the verification of an added category
-	- Bugfix:  	Problem with getMovie function
-2.1.0 (2009.08.27)
-	- Feature: 	Styled category menu. Switches between on/off per category
-	- Feature: 	Update movie status based on Ajax response. Less ajax calls needed.
-	- Feature: 	Rebuild movies cache through context menu.
-	- Feature:	Update page and cache on Vote
-	- Feature:	Script now runs on details pages, episode list etc.
-	- Feature: 	Script Auto updater
-	- Fix: 		Custom getElementsByClassName function. FF2 is now supported.
-	- Fix:		Support for /Title? tags
-	- Fix:		Support for imdb.de, uk.imdb.com, us.imdb.com, italian.imdb.com
-2.0.5 (2009.08.12)
-	- Bugfix: 2.0.4. didnt fix the problem. It's fixed now.        
-2.0.4 (2009.08.03)
-	- Bugfix: problem with getting username due to an update by IMDb
-2.0.3 (2009.05.22)
-	- added a warning for a third party cookies problem
-2.0.2 (2009.05.05)
-	- when changing a single category it took the status from the checkbox instead of the movieObj
-2.0.1 (2009.05.05)
-	- fixed a small bug. Script didn't start when going back to a page after
-	  a visit to the my movies page
-2.0.0 (2009.05.04)
-	- Tag movie links on external pages
-	- REQ: Made the appearance more suitable for different skins (stylish)
-	- REQ: The Category names in the forms have been changed to links. To quickly add/remove to/from single categories
-	- Pulldown menu's for all movie titles
-	- Automatically clean the recycle bin after a movies has been deleted
-	- Update the categories without page reload
-	- Cleaned up some of the code
-	- hideActionBox is no longer included
-1.1.0 (2008.11.14)
-	- Solved some issues with empty movie lists
-1.0.0 (2008.11.10)
-	- First public release
-*/
-/* Todo:
-2.2.0
-	Features
-		- Add a script configurator
-		- Diagnostics script to test if the script is functioning properly (eg. "display options" in my movies section)
-		- Rebuild cache automatically every x days
-		- Add highlights on other peoples my movies lists	
-	Fixes
-		- Redesign notification window. + Make it closable
-		- Make movies and votes parsing more robust (reg. "display options" on mymovies)
-		- Layout issues for the pulldown menu in external pages
-		- Resolve issues with multiple links to the same movie. Currently only the first one gets an pulldown menu otherwise there will be problems with duplicate form id's
-		- Get rid of hardcoded pulldown limit (currently 1000)
-		- Recommendation links are not highlighted on title pages
+/* 
+	Go to: http://userscripts.org/scripts/show/36797
+	   or: http://github.com/futuros/imdb-mcm
+	
+	Got some ideas? Found a bug?
+	Leave a comment or submit on issue!!
 
-2.3.0
-	Features
-		- Add a domain editor to the configurator (requires script to run globally (not sure about this))
-		- Vote for movie via pulldown (low prio)
-		- Remote login functionality
-	Fixes
-		- improve code documentation (low prio)
-		- Check for double entries in the mymovies lists
-		- Performance optimizations
-		- Use HTML5 instead of GM functions
-		- Write each xhr call to debug log (3)
-*/
-/*
-	Got some ideas? Leave a comment!!
+	Changelog: http://github.com/futuros/imdb-mcm/blob/master/changelog.txt
+	Roadmap:   http://github.com/futuros/imdb-mcm/blob/master/roadmap.txt
+
 */
 
 // Configuration
@@ -1111,6 +1044,8 @@ var Page = {
 					}
 				} // else {do nothing, just a hover over the votes}
 			});
+			// --end of vote code
+			
 			appendCategoryLinks(Page.header, Page.movie);
 			l('Adding category menu to the title page', 2);
 

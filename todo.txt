@@ -1,32 +1,19 @@
+TODO for 3.0.0 release
+------------------------
 Change IMDB.getMovieList to obtain the list_item_id.
 	We need to get the paginated html results
 
-updateStatus doesnt work on (at least) headers	
-
 catch add/remove movie via native UI
 
-Add a menu to the Top Navbar with:
-	- rebuild cache
-	- check version
-	- config
+Adding/removing a movie to watchlist needs watchlist_id
+	- get the watchlist id from the page
 
-Add a configuration script
+Version checker:
 @require version script
 
-use jquery.ajax
-
-use event on movieObj to update all movie instances instead of updateStatus function
-
-pulldown menus should close on click outside
+Pulldowns:
+	pulldown menus should close on click outside
 	close pulldown on opening other pulldown
-pulldown menus should close on click [x]
-
----
-UI: Change look and feel of
----
-Notification
-Labels
-Vote on label (rounded corners for one)
-Pulldown menus
-Sidebar categoryMenu
-Heading on title page
+	pulldown menus should close on click [x]
+	Resolve issues with multiple links to the same movie. Currently only the first one gets an pulldown menu otherwise there will be problems with duplicate form id's
+	Get rid of hardcoded pulldown limit (currently 1000) / activePulldown	
