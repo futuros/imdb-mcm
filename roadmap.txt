@@ -41,7 +41,7 @@
 			- next episode / prev episode
 			- focus() movielist_menu
 
-3.3.0+
+3.?
 	- Diagnostics script to test if the script is functioning properly (eg. "display options" in my movies section)
 	- Make the script run on external sites
 		- Add a domain editor to the configurator (requires script to run globally (not sure about this))
@@ -49,5 +49,7 @@
 	- performance optimizations
 	- improve code documentation
 	- use jquery.ajax instead of custom function
+	- use real console.log/debug function instead of call via l= & e=. Can use c=console.log
+	- http://code.google.com/p/jquery-csv/downloads/detail?name=jquery.csv-0.64.min.js&can=2&q= instead of IMDB.csv
 	
 				

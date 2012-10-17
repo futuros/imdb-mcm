@@ -2,8 +2,18 @@ TODO for 3.0.0 release
 ------------------------
 Change IMDB.getMovieList to obtain the list_item_id.
 	We need to get the paginated html results
+	
+Remove Imdb.getprops
 
-catch add/remove movie via native UI
+Implement
+	reqAuthorId: function(){},
+	parseAuthorId: function(response,request){},
+	reqUsername: function(){},
+	parseUsername: function(response,request){},
+	reqSecurityCheck: function(){},
+	parseSecurityCheck: function(response,request){},
+
+catch add/remove movie via native UI /* if catch is not possible remove element */
 
 Adding/removing a movie to watchlist needs watchlist_id
 	- get the watchlist id from the page

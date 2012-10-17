@@ -94,9 +94,10 @@ var activePulldown;
 var pulldowns =1000;
 
 this.$ = this.jQuery = jQuery.noConflict(true);
-l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)log('['+p+'] '+v);};
+l = function(v,p){p=p||3; if(CONFIG.debug.level>=p)console.info('['+p+'] '+v);};
 e = function(v){if(typeof console=='object')console.error(v);};//else{GM_log('[error] '+v);}};
-log = function(v){if(typeof console=='object')console.info(v);};//else{GM_log(v);}};
+c = console.log;
+d = console.debug;
 
 // Styles
 $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */\
@@ -307,6 +308,8 @@ var IMDB = {
 	 */
 	test: function(){
 		var test = prompt('What do we need to test?','Votes,Lists');
+		if(!test)return;
+		movies.clear();
 		tests = test.split(',');
 		for(i=0,len=tests.length;i<len;i++){
 			func= IMDB['req'+tests[i]];
@@ -318,35 +321,34 @@ var IMDB = {
 	 */
 	reqVotes: function(){
 		if(!IMDB.authorId) throw "authorIdUnknownException";
-		var request = {url:'list/export', method:'GET'};
-		request.param = {'list_id':'ratings','author_id':IMDB.authorId};
-		l(request);
-		IMDB.xhr(request);
+		IMDB.xhr({
+			url: 'list/export',
+			data: {'list_id':'ratings', 'author_id':IMDB.authorId},
+			dataFilter: IMDB.csvFilter,
+		});
 	},
 	/*
 	 * Parse the response from the reqVotes call
 	 * @param {Object} response The response object from the (succesfull) Ajax call
 	 */
 	parseVotes: function(response){
-		var votesFound=0;
-		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			movies.add({tid: lineObj.const, vote: lineObj.you_rated});
-			votesFound=index+1;
-		});
-		l(votesFound+' votes found');
+		for(var i=0,j=response.length;i<j;i++){
+			movies.add({tid: response[i].const, vote: response[i].you_rated});
+		};
+		l(response.length+' votes found');
 		movies.save();
 	},
 	reqLists: function(){
-		request = {url: 'list/_ajax/wlb_dropdown', method:'GET'};
-		request.param = {'tconst':'tt0278090'};
-		IMDB.xhr(request);
+		IMDB.xhr({
+				url: 'list/_ajax/wlb_dropdown',
+				data: {'tconst':'tt0278090'}
+		});
 	},
 	parseLists: function(response){
 		let cats = [];
-		let list = JSON.parse(response.responseText);
-		if(!list.items)return;
-		for(i=0, j=list.items.length; i<j; i++){
-			let item = list.items[i];
+		if(!response.items)return;
+		for(var i=0, j=response.items.length; i<j; i++){
+			let item = response.items[i];
 			cats.push([item.data_list_id,item.wlb_text.replace("MyMovies: ","")]);
 		}
 		// watchlist is ommited
@@ -367,71 +369,76 @@ var IMDB = {
 		});
 	},
 	reqMovieList: function(listId){
-		let request = {url: 'list/export', method:'GET'};
-		request.param = {'list_id':listId, 'author_id':IMDB.authorId};
-		IMDB.xhr(request);
+		IMDB.xhr({
+					url: 'list/export',
+					data: {'list_id':listId, 'author_id':IMDB.authorId},
+					dataFilter: IMDB.csvFilter,
+		});
 	},
 	/*
 	 * 
 	 */
-	parseMovieList: function(response,request){
-		IMDB.parseCSV(response.responseText, function(lineObj,index){
-			movies.add({tid: lineObj.const, categoryid: request.param.list_id, controlid: 1});
-			moviesFound = index+1;
-		});
+	parseMovieList: function(response){
+		let list_id=this.data.list_id;
+		for(var i=0,j=response.length;i<j;i++){
+			movies.add({tid: response[i].const, categoryid: list_id, controlid: 1});
+		}
 		movies.save();
 	},
 	/*
 	 * 
 	 */
 	reqMovieAction: function(movie,list_id,handle){
-		let request = {url:'list/_ajax/edit'};
-		request.param = {
+		let request = {url:'list/_ajax/edit', type:'POST'};
+		request.data = {
 				'const':'tt'+movie.id,
 				'list_id':list_id,
 				'ref_tag':'title',
 		};
 		if(movie.hasCategory(list_id)){
-			request.param.action='delete';
-			request.param.list_item_id=movie.getControlId();
+			request.data.action='delete';
+			request.data.list_item_id=movie.getControlId();
 		}
-		request.param[IMDB.check.name]=IMDB.check.value;
+		request.data[IMDB.check.name]=IMDB.check.value;
 		request.movie = movie;
-		if(handle)request.handle = handle;
+		if(handle)request.handle=handle;
 		IMDB.xhr(request);
 	},
-	parseMovieAction: function(response, request){
-		json = JSON.parse(response.responseText);
-		if(json.status=='200'){
-			if(request.param.action=='delete'){ //succesfully deleted
-				request.movie.deleteCategory(request.param.list_id);
+	parseMovieAction: function(response){
+		d(this);
+		if(response.status=='200'){
+			if(this.data.action=='delete'){ //succesfully deleted
+				this.movie.deleteCategory(this.data.list_id);
 			} else { //succesfully added
-				request.movie.addCategory(request.param.list_id,json.list_item_id);
+				this.movie.addCategory(this.data.list_id,response.list_item_id);
 			}
 			movies.save();
-			if(request.handle){
-				$(request.handle).toggleClass('checked',request.movie.hasCategory(request.param.list_id));
+			if(this.handle){
+				$(this.handle).toggleClass('checked',this.movie.hasCategory(this.data.list_id));
 			}
 			updateStatus(movie);
 		}
-		$(request.handle).removeClass('busy');
+		$(this.handle).removeClass('busy');
 	},
 	/* yet to implement */
 	reqAuthorId: function(){},
-	parseAuthorId: function(response,request){},
+	parseAuthorId: function(response){},
 	reqUsername: function(){},
-	parseUsername: function(response,request){},
+	parseUsername: function(response){},
 	reqSecurityCheck: function(){},
-	parseSecurityCheck: function(response,request){},
+	parseSecurityCheck: function(response){},
 	
 	/*
 	 * Ajax call to IMDB website
 	 * 
 	 */
 	xhr: function(request){
+		request.type = request.type||'GET';
+		request.url = IMDB.prefix+request.url;
+		if(CONFIG.debug.test && !confirm('ajax: '+request.type+' data to: '+request.url))return;
+
 		if(!request.callback){ // if callback is not supplied 
 			var callbackName =  IMDB.findProp(function(p){return IMDB[p]===IMDB.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
-			l('cn '+callbackName);
 			request.callback = IMDB['parse'+callbackName];
 			if(callbackName == 'Votes' || callbackName == 'MovieList'){
 				IMDB.counter.req++; //increment the number of outstanding calls
@@ -440,29 +447,21 @@ var IMDB = {
 		if(typeof request.callback != 'function') throw "invalidCallbackException";
 		
 		// create a callback function(response, request) to the function request.calback
-		request.onload = function(response){
-			request.callback(response,request);
+		request.success = [request.callback,function(){
 			// if all requests completed
 			if(callbackName && (callbackName == 'Votes' || callbackName == 'MovieList')){
 				if(IMDB.counter.req==1+IMDB.counter.resp++)
 					IMDB.finished();
 			}
-		}; 
+		}];
 		
-		request.url = IMDB.prefix+request.url;
-		if(request.param)request.data = IMDB.serialize(request.param);
 		request.headers = {'Cookie': document.cookie};
-		if(request.method=='GET'){
-			request.url += (request.param)? '?'+request.data : '';
-		} else {
-			request.data = encodeURI(request.data);
-			request.method = 'POST';
-			request.headers['Content-type'] = 'application/x-www-form-urlencoded';
-		}
-		request.onerror = function(r){e(r.responseText);};
-		if(CONFIG.debug.test && !confirm('ajax: '+request.method+' data to: '+request.url))return;
-		xmlhttpRequest(request);
+		request.error = function(r){e(r.responseText);};
+		let settings = request;
+		settings.context=request;
+		$.ajax(settings);
 	},
+	
 	rebuild: function(onInit){
 		if(onInit){ // Automatic request on script init
 			IMDB.onInit=true;
@@ -487,20 +486,18 @@ var IMDB = {
 			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
 			Page.initMenus(); // reinitialize the page
 		} else {
-			window.location.reload(); //reload the page
+			if(!CONFIG.debug.test)
+				window.location.reload(); //reload the page
 		}
 	},
 	/*
-	 * Helper function to parse through a csv file.
-	 * Calls callback(lineObj) for every line in the csv file
-	 * @TODO improve function based on http://code.google.com/p/jquery-csv/source/browse/src/jquery.csv.js
-	 * @todo: remove first and last \" from each line
+	 * Transform CSV data in Array with Objects{name:value,...}
 	 */
-	parseCSV: function(text,callback){
-		var lines = text.split(/\r\n|\n/);
+	csvFilter: function(data,dataType){
+		var lines = data.split(/\r\n|\n/);
+		var result = [];
 		l(lines.length+' lines');
 		var headers = lines.shift().replace(/\s/g,'_').toLowerCase().split('","');
-		var count=0;
 	    while(lines.length){
 	    	data = lines.shift().split('","');
 	    	if (data.length == headers.length) {
@@ -508,21 +505,12 @@ var IMDB = {
                 for (var j=0; j<headers.length; j++) {
                 	line[headers[j]] = data[j].replace(/\"/g,'');
                 }
-    	    	callback(line,count++);
+    	    	result.push(line);
 	        }
 	    }
+	    return result;
 	},
 
-	serialize: function(obj, prefix){
-	    var str = [];
-	    for(var p in obj) {
-	        var k = prefix ? prefix + "[" + p + "]" : p, v = obj[p];
-	        str.push(typeof v == "object" ? 
-	            serialize(v, k) :
-	            encodeURIComponent(k) + "=" + encodeURIComponent(v));
-	    }
-	    return str.join("&");
-	},
 	/*
 	 * Loops over all the properties if callback returns true return the property
 	 * @return property name
