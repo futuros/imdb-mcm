@@ -154,30 +154,26 @@ function createCategoriesMenu(movie){
 		'class': 'imcm_menu movie'+movie.id,
 	});	
 	for(var i in categories.array){
-		a = categories.array[i];
+		var a = categories.array[i];
 		let li = $('<li></li>', {
 			title:  'Add/Remove: '+a[1],
 			'catid': a[0],
 			html: a[1],
-			click: menuClickHandler,
-		}).toggleClass('checked', movie.hasCategory(a[0]))
+		})
+		.click(function(){
+			node = $(this);
+			if(node.hasClass('busy')){return false;}
+			movie = movies.get(node.parent().attr('movid'));
+			node.addClass('busy');
+			IMDB.reqMovieAction(movie,node.attr('catid'))
+				.success(function(){node.toggleClass('checked',this.movie.hasCategory(this.data.list_id));})
+				.complete(function(){node.removeClass('busy');});
+			return false;
+		})		
+		.toggleClass('checked', movie.hasCategory(a[0]))
 		.appendTo(menu);
 	}
 	return menu;
-}
-
-/*
- *  Click handler for movie list menu's
- */
-function menuClickHandler(){
-	node = $(this);
-	if(node.hasClass('busy')){ return false;}
-	movie = movies.get(node.parent().attr('movid'));
-	node.addClass('busy');
-	IMDB.reqMovieAction(movie,node.attr('catid'))
-		.success(function(){node.toggleClass('checked',this.movie.hasCategory(this.data.list_id));})
-		.complete(function(){node.removeClass('busy');});
-	return false;
 }
 
 /*
