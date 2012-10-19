@@ -187,7 +187,9 @@ function menuClickHandler(){
 		return false;
 	}
 	node.addClass('busy');
-	IMDB.reqMovieAction(movie,node.attr('catid'),node);
+	IMDB.reqMovieAction(movie,node.attr('catid'))
+		.success(function(){node.toggleClass('checked',this.movie.hasCategory(this.data.list_id));})
+		.complete(function(){node.removeClass('busy');});
 	return false;
 }
 
@@ -321,7 +323,7 @@ var IMDB = {
 	 */
 	reqVotes: function(){
 		if(!IMDB.authorId) throw "authorIdUnknownException";
-		IMDB.xhr({
+		return IMDB.xhr({
 			url: 'list/export',
 			data: {'list_id':'ratings', 'author_id':IMDB.authorId},
 			dataFilter: IMDB.csvFilter,
@@ -339,7 +341,7 @@ var IMDB = {
 		movies.save();
 	},
 	reqLists: function(){
-		IMDB.xhr({
+		return IMDB.xhr({
 				url: 'list/_ajax/wlb_dropdown',
 				data: {'tconst':'tt0278090'}
 		});
@@ -369,7 +371,7 @@ var IMDB = {
 		});
 	},
 	reqMovieList: function(listId){
-		IMDB.xhr({
+		return IMDB.xhr({
 					url: 'list/export',
 					data: {'list_id':listId, 'author_id':IMDB.authorId},
 					dataFilter: IMDB.csvFilter,
@@ -388,7 +390,7 @@ var IMDB = {
 	/*
 	 * 
 	 */
-	reqMovieAction: function(movie,list_id,handle){
+	reqMovieAction: function(movie,list_id){
 		let request = {url:'list/_ajax/edit', type:'POST'};
 		request.data = {
 				'const':'tt'+movie.id,
@@ -397,12 +399,11 @@ var IMDB = {
 		};
 		if(movie.hasCategory(list_id)){
 			request.data.action='delete';
-			request.data.list_item_id=movie.getControlId();
+			request.data.list_item_id=movie.getControlId(list_id);
 		}
 		request.data[IMDB.check.name]=IMDB.check.value;
 		request.movie = movie;
-		if(handle)request.handle=handle;
-		IMDB.xhr(request);
+		return IMDB.xhr(request);
 	},
 	parseMovieAction: function(response){
 		d(this);
@@ -413,12 +414,8 @@ var IMDB = {
 				this.movie.addCategory(this.data.list_id,response.list_item_id);
 			}
 			movies.save();
-			if(this.handle){
-				$(this.handle).toggleClass('checked',this.movie.hasCategory(this.data.list_id));
-			}
 			updateStatus(movie);
 		}
-		$(this.handle).removeClass('busy');
 	},
 	/* yet to implement */
 	reqAuthorId: function(){},
@@ -438,7 +435,7 @@ var IMDB = {
 		if(CONFIG.debug.test && !confirm('ajax: '+request.type+' data to: '+request.url))return;
 
 		if(!request.callback){ // if callback is not supplied 
-			var callbackName =  IMDB.findProp(function(p){return IMDB[p]===IMDB.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
+			var callbackName = IMDB.findProp(function(p){return IMDB[p]===IMDB.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
 			request.callback = IMDB['parse'+callbackName];
 			if(callbackName == 'Votes' || callbackName == 'MovieList'){
 				IMDB.counter.req++; //increment the number of outstanding calls
@@ -459,7 +456,7 @@ var IMDB = {
 		request.error = function(r){e(r.responseText);};
 		let settings = request;
 		settings.context=request;
-		$.ajax(settings);
+		return $.ajax(settings);
 	},
 	
 	rebuild: function(onInit){
@@ -1133,5 +1130,4 @@ function __setupRequestEvent(aOpts, aReq, aEventName) {
     aOpts['on' + aEventName](responseState);
   });
 }
-
 Page.init();
