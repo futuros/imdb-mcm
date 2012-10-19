@@ -1054,69 +1054,6 @@ var Storage = {
 		}
 };
 
-// This naive implementation will simply fail to do cross-domain requests,
-// just like any javascript in any page would.
-function xmlhttpRequest(aOpts) {
-  let req = new XMLHttpRequest();
-
-  __setupRequestEvent(aOpts, req, 'abort');
-  __setupRequestEvent(aOpts, req, 'error');
-  __setupRequestEvent(aOpts, req, 'load');
-  __setupRequestEvent(aOpts, req, 'progress');
-  __setupRequestEvent(aOpts, req, 'readystatechange');
-
-  req.open(aOpts.method, aOpts.url, !aOpts.synchronous,
-      aOpts.user || '', aOpts.password || '');
-  if (aOpts.overrideMimeType) {
-    req.overrideMimeType(aOpts.overrideMimeType);
-  }
-  if (aOpts.headers) {
-    for (let prop in aOpts.headers) {
-      if (Object.prototype.hasOwnProperty.call(aOpts.headers, prop)) {
-        req.setRequestHeader(prop, aOpts.headers[prop]);
-      }
-    }
-  }
-  let body = aOpts.data ? aOpts.data : null;
-  if (aOpts.binary) {
-    return req.sendAsBinary(body);
-  } else {
-    return req.send(body);
-  }
-}
-
-function __setupRequestEvent(aOpts, aReq, aEventName) {
-  if (!aOpts['on' + aEventName]) return;
-
-  aReq.addEventListener(aEventName, function(aEvent) {
-    let responseState = {
-      responseText: aReq.responseText,
-      responseXML: aReq.responseXML,
-      readyState: aReq.readyState,
-      responseHeaders: null,
-      status: null,
-      statusText: null,
-      finalUrl: null
-    };
-    switch (aEventName) {
-      case "progress":
-        responseState.lengthComputable = aEvent.lengthComputable;
-        responseState.loaded = aEvent.loaded;
-        responseState.total = aEvent.total;
-        break;
-      case "error":
-        break;
-      default:
-        if (4 != aReq.readyState) break;
-        responseState.responseHeaders = aReq.getAllResponseHeaders();
-        responseState.status = aReq.status;
-        responseState.statusText = aReq.statusText;
-        break;
-    }
-    aOpts['on' + aEventName](responseState);
-  });
-}
-
 window.IMDB_MCM = {
 		rebuild: IMDB.rebuild,
 		Page: Page,
