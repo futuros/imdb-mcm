@@ -127,28 +127,6 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 </style>');
 
 /*
- * Get the movie info based on a address string
- */
-function getMovieInfo(address) {
-	tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
-	if (!tid) return false;
-	m = getMovie(tid[1]);
-	if(Page.isType(Page.TYPE.title) && Page.movie && m.id == Page.movie.id)return false; // important! Check if page.movie because the page is being checked against this function to.
-	return m;
-}
-/*
- * Get a movie object based on a movie id.
- * @return MovieObj
- */
-function getMovie(id){
-	var movie = movies.get(id);
-	if(!movie){
-		movie = movies.add({'tid':id}); //Create an empty object with only a id
-	}
-	return movie;
-}
-
-/*
  * Create a menu element with all the categories as list items.
  * @param 	movie	a MovieObj which the form field will add/remove to the categories
  * @return	html	returns a html menu element or false if a menu with the id already exists.
@@ -178,7 +156,7 @@ function createCategoriesMenu(movie){
 function menuClickHandler(){
 	node = $(this);
 	if(node.hasClass('busy')){ return false;}
-	movie = getMovie(node.parent().attr('movid'));
+	movie = movies.get(node.parent().attr('movid'));
 	
 	// check if the checked status of the form is the same as the movie object.
 	if(movie.hasCategory(node.attr('catid'))!=node.hasClass('checked')){
@@ -308,8 +286,8 @@ var IMDB = {
 	/*
 	 * Temporary function to test the IMDB api in isolation
 	 */
-	test: function(){
-		var test = prompt('What do we need to test?','Votes,Lists');
+	test: function(commands){
+		var test = commands || prompt('What do we need to test?','Votes,Lists');
 		if(!test)return;
 		movies.clear();
 		tests = test.split(',');
@@ -637,8 +615,14 @@ function MovieList(){
 			}
 			while(i>0)
 		}
-		return false;
+		return this.add({tid:id}); // return an empty movie object
 	}
+	this.getByAddress = function(address) {
+		tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
+		if (!tid) return false;
+		return this.get(tid[1]);
+	}
+	
 	
 	/*
 	  * String to Array
@@ -956,9 +940,9 @@ var Page = {
 		if(movies.array.length==0 || categories.array.length==0){
 			l('Movies OR categories are empty. Rebuilding cache',2);
 			IMDB.rebuild(true);
-			return;
+			return false;
 		} else {
-			Page.initLinks();
+			return Page.initLinks();
 		}
 	},
 	initLinks: function(){
@@ -967,7 +951,7 @@ var Page = {
 		linkCount=0;
 		activeLinks=0;
 		$('A').each(function(){
-			if(movie = getMovieInfo(this.href)){
+			if(movie = movies.getByAddress(this.href) && !movie.equals(Page.getMovie())){
 				if(appendCategoryLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
@@ -1001,9 +985,7 @@ var Page = {
 	},
 	startTitle: function(){
 		l('start title page');
-		if(Page.movie = getMovieInfo(Page.loc)){ //Title page
-			Page.header = $('h1').first();
-			
+		if(movie = Page.getMovie()){ //Title page
 			// when the user votes the page should be updated
 			var submitted = false;
 			var deleting = false;
@@ -1014,21 +996,21 @@ var Page = {
 				} else if(submitted){ // node no longer marked as pending, but something was submitted
 					vote = (deleting)?0:$(this).prev().children().first().html();
 					submitted=deleting=false;
-					if(Page.movie.vote!=vote){
-						Page.movie.setVote(vote);
+					if(movie.vote!=vote){
+						movie.setVote(vote);
 						movies.save();
-						l('Vote changed to '+Page.movie.vote,1);
-						updateStatus(Page.movie);
+						l('Vote changed to '+movie.vote,1);
+						updateStatus(movie);
 					}
 				} // else {do nothing, just a hover over the votes}
 			});
 			// --end of vote code
 			
-			appendCategoryLinks(Page.header, Page.movie);
+			appendCategoryLinks($('h1').first(), movie);
 			l('Adding category menu to the title page', 2);
 
 			$('<div />').addClass('imcm_catlist aux-content-widget-2')
-				.append(createCategoriesMenu(Page.movie))
+				.append(createCategoriesMenu(movie))
 				.prependTo('#maindetails_sidebar_bottom');
 			
 			if(CONFIG.debug.test)IMDB.test();
@@ -1036,6 +1018,10 @@ var Page = {
 	},
 	isType: function(type){
 		return Page.type==type;
+	},
+	getMovie: function(){
+		Page.movie = Page.movie || movies.getByAddress(Page.loc); 
+		return Page.movie;
 	}
 };
 
@@ -1130,4 +1116,11 @@ function __setupRequestEvent(aOpts, aReq, aEventName) {
     aOpts['on' + aEventName](responseState);
   });
 }
+
+window.IMDB_MCM = {
+		rebuild: IMDB.rebuild,
+		Page: Page,
+		test: IMDB.test
+};
+
 Page.init();
