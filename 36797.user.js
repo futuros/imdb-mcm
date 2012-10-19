@@ -173,13 +173,6 @@ function menuClickHandler(){
 	node = $(this);
 	if(node.hasClass('busy')){ return false;}
 	movie = movies.get(node.parent().attr('movid'));
-	
-	// check if the checked status of the form is the same as the movie object.
-	if(movie.hasCategory(node.attr('catid'))!=node.hasClass('checked')){
-		Notification.error('The checkbox status is not the same as the information in the movie cache.</p><p>Reload the page and try again.<br />If the problem persists try rebuilding the cache (context menu OR visit imdb.com/mymovies).');
-		Log.error('(line:250) wrong status for movie: '+movie.id+' and catid: '+node.attr('catid'));
-		return false;
-	}
 	node.addClass('busy');
 	IMDB.reqMovieAction(movie,node.attr('catid'))
 		.success(function(){node.toggleClass('checked',this.movie.hasCategory(this.data.list_id));})
