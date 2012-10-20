@@ -4,8 +4,7 @@
 // @description   	Improvements for IMDB My Movies. Now you can REALLY use the imdb page to manage your Must-See lists and collections 
 // @copyright		2008+, Futuros
 // @license 		Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
-// @version       	3.0.0
-// @date		2010-05-13
+// @version       	3.0beta
 // @include       	http://*imdb.com/*
 // @include       	http://*imdb.de/*
 // @exclude       	http://i.imdb.com/*
@@ -13,12 +12,12 @@
 // @exclude       	http://*imdb.de/images/*
 // @require			http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js
 // @grant			none
+// @updateURL       https://github.com/futuros/imdb-mcm/blob/master/36797.meta.js
+// @downloadURL     https://github.com/futuros/imdb-mcm/blob/master/36797.user.js
 // ==/UserScript==
 
 var Script = {
-	name:    	'IMDb Movie Collection Manager',
-	version:	'3.0.0',
-	id:		36797
+	name: 'IMDb Movie Collection Manager',
 };
 
 /* 
@@ -108,15 +107,11 @@ var Log = {
 	},
 	error: console.error,
 };
-var	l = (CONFIG.debug.level>0) ? console.info : Log.add,
-	l1= l,
-	l2= (CONFIG.debug.level>=2) ? console.info : Log.add,
-	l3= (CONFIG.debug.level>=3) ? console.info : Log.add,
-	c = console.log,
-	d = console.debug;
+// some log shorthand codes
+var	l = (CONFIG.debug.level>0) ? console.info : Log.add, l1= l,	l2= (CONFIG.debug.level>=2) ? console.info : Log.add, l3= (CONFIG.debug.level>=3) ? console.info : Log.add,	c = console.log, d = console.debug;
 
 // Styles
-$('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript (IMDb Movie Collection Manager - by Futuros): */\
+$('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript ('+Script.name+'): */\
 	h1.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.header.highlight.color.background+';} \
 	a.imcm_highlight {font-weight: bold; color: black !important; background-color:'+CONFIG.links.highlight.color.background+';} \
 	.imcm_catlist { width: auto; color: black; text-align:left;} \
