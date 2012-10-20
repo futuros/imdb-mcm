@@ -95,9 +95,10 @@ var pulldowns =1000;
 this.$ = this.jQuery = jQuery.noConflict(true);
 var Log = {
 	array: [],
-	show: function(debug){
-		if(!debug)
+	show: function(singleLine){
+		if(singleLine){
 			return Log.array;
+		}
 		Log.array.forEach(function(msg){console.log(msg)});
 		return false;
 	},
@@ -108,7 +109,7 @@ var Log = {
 	error: console.error,
 };
 // some log shorthand codes
-var	l = (CONFIG.debug.level>0) ? console.info : Log.add, l1= l,	l2= (CONFIG.debug.level>=2) ? console.info : Log.add, l3= (CONFIG.debug.level>=3) ? console.info : Log.add,	c = console.log, d = console.debug;
+var	l = (CONFIG.debug.level>0) ? console.info : Log.add, l1= l,	l2= (CONFIG.debug.level>=2) ? console.info : Log.add, l3= (CONFIG.debug.level>=3) ? console.info : Log.add,	_c = console.log, _d = console.debug;
 
 // Styles
 $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript ('+Script.name+'): */\
@@ -278,9 +279,11 @@ function updateStatus(movie){
  * actionMethodName does not have a callback
  */
 var IMDB = {
-	prefix: 'http://www.imdb.com/',	
-	authorId:'ur13251114',
-	check: {name:'49e6c',value:'0c36'},
+	prefix: 'http://www.imdb.com/',
+	_const: 'tt0278090', // random valid const.
+	authorId:null,
+	watchlistId:null,
+	check:null,
 	counter: { req:0, resp:0}, // counts the number of outstanding/incomming getVotes,getLists,getMovieList calls.
 	onInit: false,
 	/*
@@ -300,7 +303,6 @@ var IMDB = {
 	 * Requests the votes in a csv format
 	 */
 	reqVotes: function(){
-		if(!IMDB.authorId) throw "authorIdUnknownException";
 		return IMDB.xhr({
 			url: 'list/export',
 			data: {'list_id':'ratings', 'author_id':IMDB.authorId},
@@ -321,7 +323,7 @@ var IMDB = {
 	reqLists: function(){
 		return IMDB.xhr({
 				url: 'list/_ajax/wlb_dropdown',
-				data: {'tconst':'tt0278090'}
+				data: {'tconst':IMDB._const}
 		});
 	},
 	parseLists: function(response){
@@ -332,7 +334,7 @@ var IMDB = {
 			cats.push([item.data_list_id,item.wlb_text.replace("MyMovies: ","")]);
 		}
 		// watchlist is ommited
-		cats.push(['watchlist', 'Watchlist']);
+		cats.push([IMDB.watchlistId, 'Watchlist']);
 		// save the categories
 		categories.set(cats);
 		// load the movies for the categories
@@ -395,12 +397,37 @@ var IMDB = {
 		}
 	},
 	/* yet to implement */
-	reqAuthorId: function(){},
-	parseAuthorId: function(response){},
-	reqUsername: function(){},
-	parseUsername: function(response){},
-	reqSecurityCheck: function(){},
-	parseSecurityCheck: function(response){},
+	reqAuthorId: function(){
+		return IMDB.xhr({
+			url: 'widget/recommendations/_ajax/get_title_info',
+			data: {
+				'tconst':IMDB._const,
+			},
+			type: 'POST',
+		});
+	},
+	parseAuthorId: function(response){
+		if(response.status=='200'){
+			IMDB.authorId = response.rating_info.uconst;
+		}
+	},
+
+	reqSecurityCheck: function(){
+		if(IMDB.watchlistId && IMDB.check){
+			return false;
+		}
+		return IMDB.xhr({
+			url: 'list/_ajax/watchlist_has',
+			data: {'consts':[IMDB._const]},
+			type: 'POST',
+		});
+	},
+	parseSecurityCheck: function(response){
+		if(response.status=='200'){
+			IMDB.watchlistId = response.list_id;
+			IMDB.check = response.extra;
+		}
+	},
 	
 	/*
 	 * Ajax call to IMDB website
@@ -943,6 +970,8 @@ var Page = {
 			IMDB.rebuild(true);
 			return false;
 		} else {
+			window.IMDB_MCM.Movies = movies;
+			window.IMDB_MCM.Categories = categories;
 			return Page.initLinks();
 		}
 	},
@@ -1055,9 +1084,12 @@ var Storage = {
 };
 
 window.IMDB_MCM = {
-		rebuild: IMDB.rebuild,
 		Page: Page,
-		test: IMDB.test,
+		IMDB: IMDB,
+		//Movies: movies, doesnt work because it needs to be instantiated
+		//Lists: categories, idem
+		Notification: Notification,
+		Storage: Storage,
 		log: Log.show,
 };
 

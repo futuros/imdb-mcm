@@ -1,3 +1,39 @@
+First we need
+reqAuthorId
+	>authorId
+reqSecurityCheck
+	>watchlistId
+	>check.name & check.value
+reqLists
+	!watchlistId	(needed in parse)
+	>list_id 		(= categories)
+reqMovieList
+	!categories
+	!authorId
+	>list_item_id	(pair with list_id in movie.categories)
+	>const			(movie.id)
+reqVotes
+	!authorId
+	>const
+	>vote
+/=== Manual actions ===/
+movieAction
+	!const
+	!list_id
+	!list_item_id
+	!check
+
+//--- Calls hierarchy ---//
+(reqAuthorId, reqSecurityCheck){
+	(reqLists){
+		(reqVotes, [reqMovieList1,..,reqMovieListN]){
+			IMDB.finished();
+		}
+	}
+}
+
+
+
 Add/remove a single movie:
 
 http://www.imdb.com/list/_ajax/edit
