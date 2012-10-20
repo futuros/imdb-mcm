@@ -5,8 +5,8 @@
 // @copyright		2008+, Futuros
 // @license 		Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
 // @version       	3.0beta
-// @include       	http://*imdb.com/*
-// @include       	http://*imdb.de/*
+// @match			http://*.imdb.com/*
+// @match			http://*.imdb.de/*
 // @exclude       	http://i.imdb.com/*
 // @exclude       	http://*imdb.com/images/*
 // @exclude       	http://*imdb.de/images/*
