@@ -155,7 +155,7 @@ function createListsMenu(movie){
 			html: a[1],
 		})
 		.click(function(){
-			node = $(this);
+			var node = $(this);
 			if(node.hasClass('busy')){return false;}
 			movie = Movies.get(node.parent().attr('movid'));
 			node.addClass('busy');
@@ -283,8 +283,9 @@ var IMDB = {
 	authorId:null,
 	watchlistId:null,
 	check:null,
-	counter: { req:0, resp:0}, // counts the number of outstanding/incomming getVotes,getLists,getMovieList calls.
 	onInit: false,
+	promises:null,
+	
 	/*
 	 * Temporary function to test the IMDB api in isolation
 	 */
@@ -339,6 +340,26 @@ var IMDB = {
 		// save the movielists
 		Lists.set(cats);
 	},
+	reqHLists: function(){
+		return IMDB.xhr({url: 'user/'+IMDB.authorId+'/lists?tab=all&filter=titles',});
+	},
+	parseHLists: function(response){
+		let cats = [];
+		$response = $(response);
+		$table = $response.find('.your_lists .lists tr.row').each(function(){
+			var $row = $(this);
+			var id = $row.attr('id');
+			var name = $row.find('.name a').html().replace("MyMovies: ","");
+			var count = parseInt($row.find('.name span').html().match(/\((\d+)/)[1]);
+			cats.push([id,name,count]);
+		});
+		// watchlist is ommited
+		var watchlistCount = $response.find('div.watchlist b a').html().match(/\((\d+)\)/);
+		watchlistCount = (watchlistCount)?parseInt(watchlistCount[1]):50;
+		cats.push([IMDB.watchlistId, 'Watchlist', watchlistCount]);
+		// save the movielists
+		Lists.set(cats);
+	},
 	/*
 	 * For loop over the different movielists
 	 * Calls reqMovieList for each
@@ -347,7 +368,12 @@ var IMDB = {
 		var calls = [];
 		Lists.array.forEach(function(elm,index, arr){
 			l3('req Movielist['+elm[0]+']: '+elm[1]);
-			calls.push(IMDB.reqMovieList(elm[0]));
+			//calls.push(IMDB.reqMovieList(elm[0]));
+			var start=1;
+			while(start<elm[2]){
+				calls.push(IMDB.reqHtmlList(elm[0],start));
+				start+=250;
+			}
 		});
 		return $.when.apply($,calls);
 	},
@@ -366,7 +392,26 @@ var IMDB = {
 		for(var i=0,j=response.length;i<j;i++){
 			Movies.add({tid: response[i].const, listId: list_id, controlId: 1});
 		}
-		Movies.save();
+	},
+	reqHtmlList: function(listId,start){
+		start = start || 1;
+		return IMDB.xhr({
+			url: 'list/'+listId+'/?view=compact',
+			data: {'start':start, list_id:listId},
+		});
+	},
+	parseHtmlList: function(response){
+		var listId = this.data.list_id;
+		var $response = $(response);
+		$response.find('.list.compact table tr').each(function(index){
+			if(index==0)return;
+			$row = $(this);
+			var rate = $row.find('.rating-list');
+			if(rate && rate.attr('id')){
+				var tt=rate.attr('id').split('|')[0];
+				Movies.add({tid:tt, listId:listId,controlId:$row.attr('data-item-id')});
+			}
+		});
 	},
 	/*
 	 * 
@@ -461,7 +506,7 @@ var IMDB = {
 		}
 		Movies.clear(); // clear the current cache.
 		$.when(IMDB.reqAuthorId(),IMDB.reqSecurityCheck()).done(function(){
-			$.when(IMDB.reqLists()).done(function(){
+			$.when(IMDB.reqHLists()).done(function(){
 				$.when(IMDB.reqMovieLists(),IMDB.reqVotes())
 					.done(IMDB.finished)
 					.fail(IMDB.failed);
@@ -476,6 +521,7 @@ var IMDB = {
 		let onInit = IMDB.onInit;
 		IMDB.onInit=null; // reset onInit boolean
 		if(Movies.array.length && Lists.array.length && IMDB.authorId && IMDB.check && IMDB.watchlistId){
+			Movies.save();
 			Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.array.length+'<br />Movies: '+Movies.array.length, 8000,true);
 			if(onInit){ // if the rebuild script was started on page init
 				Page.initCaches(); // reinitialize the page
