@@ -542,36 +542,36 @@ var IMDB = {
 var Notification = {
 	_timer:null,	
 	_init: function(){
-		Notification._node = $('<div class="imcm_notification"></div>');
-		Notification._node.appendTo('body')
-			.on('click', Notification._hide);
+		this._node = $('<div class="imcm_notification"></div>')
+			.appendTo('body')
+			.click(this._hide);
 	},
 	_write:function(text, maxtime, append){
-		if(Notification._timer)clearTimeout(Notification._timer);
+		if(this._timer)clearTimeout(this._timer);
 		if(append)
-			Notification._node.append('<br />'+text);
+			this._node.append('<br />'+text);
 		else
-			Notification._node.html(text);
-		Notification._show();
+			this._node.html(text);
+		this._show();
 		if(maxtime>0){
-			Notification._timer=setTimeout(Notification._hide,maxtime);
+			this._timer=setTimeout(this._hide,maxtime);
 		}
 	},
 	write:function(text, maxtime, append){
-		if(!Notification._node)Notification._init();
-		Notification._node.removeClass('error');
-		Notification._write(text,maxtime,append);
+		if(!this._node)this._init();
+		this._node.removeClass('error');
+		this._write(text,maxtime,append);
 	},
 	debug: function(text, maxtime){
-		if(CONFIG.debug.popup)Notification.write(text, maxtime);
+		if(CONFIG.debug.popup)this.write(text, maxtime);
 	},
 	error: function(text){
-		if(!Notification._node)Notification._init();
-		Notification._node.addClass('error');
-		Notification._write('<h3>ERROR:</h3><p>'+text+'</p>');
+		if(!this._node)this._init();
+		this._node.addClass('error');
+		this._write('<h3>ERROR:</h3><p>'+text+'</p>');
 	},
 	_show: function(){
-		Notification._node.show('slow');
+		this._node.show('slow');
 	},
 	
 	_hide: function(){
@@ -584,43 +584,26 @@ var Notification = {
  */
 function MovieList(){
 	this.array = [];
-	this.name = Page.user+'_movies';
 	var obj = this;
 	
 	/*
 	  * Load the stored value
 	  */
 	this.load = function(){
-		var stored = Storage.get('imdb+_'+this.name); //read from browser
+		var stored = Storage.get('movies'); //read from browser
 		if(stored != undefined)		
 			this.toArray(stored);
 	}
 	
 	this.save = function(){
 		var store = this.toString();
-		Storage.set('imdb+_'+this.name, store); //write to browser
+		Storage.set('movies', store); //write to browser
 	}
 	
 	this.clear = function(){
 		this.array = [];
 	}
-	
-	//remove all the movies with only categories. And empty categories for movies with a vote
-	this.clearCategories = function(){
-		if((i=this.array.length)>0){		
-			do{
-				i--;
-				obj = this.array[i];
-				if(obj.hasVote()){
-					obj.clearCategories();
-				} else {
-					this.array.splice(i,1);
-				}
-			}
-			while(i>0)
-		}
-	}
-	
+		
 	/*
 	  * Change the object with the new array and store the value
 	  */
@@ -776,10 +759,6 @@ function MovieObj(){
 		return catList.sort();
 	}
 	
-	this.clearCategories = function(){
-		this.category = [];
-	}
-	
 	this.getControlId = function(category){
 		for(var i=0;i<this.category.length;i++){
 			if(this.category[i][0]==category)
@@ -816,15 +795,14 @@ function MovieObj(){
  */
 var Categories = {
 	array: [],
-	name: 'imdb+_'+Page.user+'_categories',
 	
 	/*
 	  * Get the stored value
 	  */
 	load: function(){
-		var stored = JSON.parse(Storage.get(Categories.name)); //read from browser
+		var stored = JSON.parse(Storage.get('categories')); //read from browser
 		if(typeof stored == 'Array'){
-			return Categories.array = stored;
+			return this.array = stored;
 		}
 	},
 	
@@ -832,32 +810,32 @@ var Categories = {
 	  * Change the object with the new array and store the value
 	  */
 	set: function(value){
-		Categories.array = value;
-		Storage.set(Categories.name, JSON.stringify(Categories.array)); //write to browser
+		this.array = value;
+		Storage.set('categories', JSON.stringify(this.array)); //write to browser
 	},
 
 	/*
 	  * Get a cat id by a name
 	  */
 	getId: function(name){
-		for(var i in Categories.array){
-			a = Categories.array[i];
+		for(var i in this.array){
+			a = this.array[i];
 			if(a[1]==name)return a[0];
 		}
 		return false;
-	}.
+	},
 
 	/*
 	  * Get a name by id
 	  */
 	getName: function(id){
-		for(var i in Categories.array){
-			a = Categories.array[i];
+		for(var i in this.array){
+			a = this.array[i];
 			if(a[0]==id)return a[1];
 		}
 		return false;
 	}
-};
+}
 
 /*
  * Object to handle information about the page if it is a title page
@@ -875,24 +853,24 @@ var Page = {
 		l2('Initialize script: '+document.location.href);
 		movies = new MovieList(); //should not be instantiated
 		window.IMDB_MCM.Movies = movies;
-		Page.initType();
+		this.initType();
 	},
 	
 	initType: function(){
-		Page.loc = document.location.href;
-		if(Page.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
-			Page.type = Page.TYPE.external;
-		} else	if(Page.loc.search(/\/user/)!=-1){
-			Page.type = Page.TYPE.mymovies;
-		} else	if(Page.loc.search(/\/list/)!=-1){
-			Page.type = Page.TYPE.mymovies;
-		} else if(Page.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
-			Page.type = Page.TYPE.title;
+		this.loc = document.location.href;
+		if(this.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
+			this.type = this.TYPE.external;
+		} else	if(this.loc.search(/\/user/)!=-1){
+			this.type = this.TYPE.mymovies;
+		} else	if(this.loc.search(/\/list/)!=-1){
+			this.type = this.TYPE.mymovies;
+		} else if(this.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
+			this.type = this.TYPE.title;
 		} else {
-			Page.type = Page.TYPE.imdb;
+			this.type = this.TYPE.imdb;
 		}
-		l1('Page type: '+Page.type);
-		Page.initUser();
+		l1('Page type: '+this.type);
+		this.initUser();
 	},
 	/*
 	 * Get the Username
@@ -901,14 +879,14 @@ var Page = {
 	 */
 	initUser: function(){
 		l2('Initialize username' ,2);
-		if(!Page.user){
+		if(!this.user){
 			var account = document.getElementById('nb15personal') || document.getElementById('nb_personal');
 			if (account) {
 				var result = account.innerHTML.match(/\s*([^>]+)'s account/i);
 				if (result && result[1]) {
-					Page.user = result[1];
+					this.user = result[1];
 				} else {
-					if(Page.isType(Page.TYPE.external)){
+					if(this.isType(this.TYPE.external)){
 						l2('External page. Send them to IMDB',2);
 						Notification.write('You need to visit an IMDB page first before you can use this script on external sites. <a href="http://www.imdb.com/">Imdb.com</a>');
 					} else {
@@ -919,19 +897,19 @@ var Page = {
 				}
 			}
 		}
-		l1('Username initialized: '+Page.user);
-		Page.initMenus();
+		l1('Username initialized: '+this.user);
+		this.initMenus();
 	},
 	initMenus: function(){
 		l3('Init menus');
-		//if(Page.isType(Page.TYPE.mymovies)){ //mymovies page
+		//if(this.isType(this.TYPE.mymovies)){ //mymovies page
 			
 			 //@TODO: Add button/menu for cache reload 
 			 //We should reload the cache on every page view.
 			 //We can add a button in the top corner. And if we push it the cache gets reloaded.
 			 //
 		//}
-		Page.initCaches();
+		this.initCaches();
 	},
 	initCaches: function(){
 		if(IMDB.setAuthorId(Storage.get('authorId')) && IMDB.setWatchlist(Storage.get('watchlistId')) && IMDB.setSecurity(Storage.get('securityCheck'))){
@@ -941,7 +919,7 @@ var Page = {
 			l1('Movies loaded from cache: '+movies.array.length);
 			l1('Categories loaded from cache: '+Categories.array.length);
 			if(movies.array.length!=0 && Categories.array.length!=0){
-				return Page.initLinks();
+				return this.initLinks();
 			}
 		}
 		IMDB.rebuild(true);
@@ -953,7 +931,7 @@ var Page = {
 		activeLinks=0;
 		$('A').each(function(){
 			var movie;
-			if((movie = movies.getByAddress(this.href)) && !movie.equals(Page.getMovie())){
+			if((movie = movies.getByAddress(this.href)) && !movie.equals(this.getMovie())){
 				if(appendCategoryLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
@@ -965,28 +943,28 @@ var Page = {
 		if(CONFIG.pulldown){
 			document.body.addEventListener('click', function(){if(activePulldown!=null){$(activePulldown).addClass('imcm_hide');}}, true);
 		}
-		Page.start();
+		this.start();
 	},
 	start: function(){
 		l3('start switcher');
-		switch(Page.type){
-			case Page.TYPE.title:
-				Page.startTitle();
+		switch(this.type){
+			case this.TYPE.title:
+				this.startTitle();
 			break;
-			case Page.TYPE.mymovies:
-				//Page.startMymovies();
+			case this.TYPE.mymovies:
+				//this.startMymovies();
 			break;
-			case Page.TYPE.imdb:
-				//Page.startOther();
+			case this.TYPE.imdb:
+				//this.startOther();
 			break;
-			case Page.TYPE.external:
-				//Page.startExternal();
+			case this.TYPE.external:
+				//this.startExternal();
 			break;
 		}
 	},
 	startTitle: function(){
 		l3('start title page');
-		if(movie = Page.getMovie()){ //Title page
+		if(movie = this.getMovie()){ //Title page
 			// when the user votes the page should be updated
 			var submitted = false;
 			var deleting = false;
@@ -1018,16 +996,15 @@ var Page = {
 		}
 	},
 	isType: function(type){
-		return Page.type==type;
+		return this.type==type;
 	},
 	getMovie: function(){
-		Page.movie = Page.movie || movies.getByAddress(Page.loc); 
-		return Page.movie;
+		return this.movie = this.movie || movies.getByAddress(this.loc); 
 	}
 };
 
 var Storage = {
-		prefix: ['', Script.name, ''].join('***'),
+		prefix: ['', Script.name, '', Page.user, ''].join('***'),
 		
 		remove:function(key) {
 		  localStorage.removeItem(Storage.prefix + key);
@@ -1063,7 +1040,7 @@ window.IMDB_MCM = {
 		Notification: Notification,
 		Storage: Storage,
 		log: Log.show,
-		Categories = Categories;
+		Categories: Categories,
 };
 
 Page.init();
