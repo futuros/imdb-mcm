@@ -75,9 +75,9 @@ var CONFIG = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		level: 2,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
+		level: 0,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
 		popup: true,		// show notifications when something gets deleted or updated 
-		test: (document.location.href.indexOf('tt0278090')!=-1), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
+		test: false,//(document.location.href.indexOf('tt0278090')!=-1), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
 }	};
 
 var IMAGES = {
@@ -284,7 +284,6 @@ var IMDB = {
 	watchlistId:null,
 	check:null,
 	onInit: false,
-	promises:null,
 	
 	/*
 	 * Temporary function to test the IMDB api in isolation
@@ -346,7 +345,7 @@ var IMDB = {
 	parseHLists: function(response){
 		let cats = [];
 		$response = $(response);
-		$table = $response.find('.your_lists .lists tr.row').each(function(){
+		$response.find('.your_lists .lists tr.row').each(function(){
 			var $row = $(this);
 			var id = $row.attr('id');
 			var name = $row.find('.name a').html().replace("MyMovies: ","");
