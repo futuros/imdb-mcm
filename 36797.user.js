@@ -48,11 +48,11 @@ var CONFIG = {
 				text: '#606060',// text color of the labels
 			},
 			show: true,			// show labels on top of the page
-			redirect: true,			// use links to go to the mymovies lists instead of deleting from that category
-			confirmation: true,	// ask for confirmation when deleting a category with a link; NB: only used when goto:false
+			redirect: true,			// use links to go to the mymovies lists instead of deleting from that list
+			confirmation: true,	// ask for confirmation when deleting a list with a link; NB: only used when goto:false
 	},	},
 	links: {				// Configuration options for the links
-		pulldown: true, 		// append a pulldown menu with categories to every movie link
+		pulldown: true, 		// append a pulldown menu with lists to every movie link
 		highlight: {
 			show: true,			// Highlight the title name if in menu or voted for
 			color: {
@@ -66,8 +66,8 @@ var CONFIG = {
 				text: '#606060',// text color of the labels
 			},
 			show: true,			// show labels after the links
-			redirect: false,		// use links to go to the mymovies lists instead of deleting from that category
-			confirmation: true	// ask for confirmation when deleting a category with a link; NB: only used when goto:false
+			redirect: false,		// use links to go to the mymovies lists instead of deleting from that list
+			confirmation: true	// ask for confirmation when deleting a list with a link; NB: only used when goto:false
 	}	},
 	vote: {
 			high: {text: 'white', bg: 'green'},
@@ -87,8 +87,6 @@ var IMAGES = {
 };
 
 //Global variabels
-var movies; // object with all the movies in the my movies list
-var categories; // object with all the categories
 var activePulldown;
 var pulldowns =1000;
 
@@ -139,18 +137,18 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 </style>');
 
 /*
- * Create a menu element with all the categories as list items.
- * @param 	movie	a MovieObj which the form field will add/remove to the categories
+ * Create a menu element with all the movielists as list items.
+ * @param 	movie	a MovieObj which the form field will add/remove to the items
  * @return	html	returns a html menu element or false if a menu with the id already exists.
  */
-function createCategoriesMenu(movie){
+function createListsMenu(movie){
 	var menu = $('<ul></ul>', {
 		name:    'cats_'+movie.id,
 		'movid': movie.id,
 		'class': 'imcm_menu movie'+movie.id,
 	});	
-	for(var i in Categories.array){
-		var a = Categories.array[i];
+	for(var i in Lists.array){
+		var a = Lists.array[i];
 		let li = $('<li></li>', {
 			title:  'Add/Remove: '+a[1],
 			'catid': a[0],
@@ -159,33 +157,33 @@ function createCategoriesMenu(movie){
 		.click(function(){
 			node = $(this);
 			if(node.hasClass('busy')){return false;}
-			movie = movies.get(node.parent().attr('movid'));
+			movie = Movies.get(node.parent().attr('movid'));
 			node.addClass('busy');
 			IMDB.reqMovieAction(movie,node.attr('catid'))
-				.success(function(){node.toggleClass('checked',this.movie.hasCategory(this.data.list_id));})
+				.success(function(){node.toggleClass('checked',this.movie.hasList(this.data.list_id));})
 				.complete(function(){node.removeClass('busy');});
 			return false;
 		})		
-		.toggleClass('checked', movie.hasCategory(a[0]))
+		.toggleClass('checked', movie.hasList(a[0]))
 		.appendTo(menu);
 	}
 	return menu;
 }
 
 /*
- * Appends labels for all the categories the movie belongs to, to the node
- * Also add a pulldown menu with categories if CONFIG requires so
+ * Appends labels for all the movielists the movie belongs to, to the node
+ * Also add a pulldown menu with movielists if CONFIG requires so
  *
- * @param {HtmlElement} node The node where the categories need to be appended to
+ * @param {HtmlElement} node The node where the movielists need to be appended to
  * @param {MovieObj} movie The movie corresponding with the node
  * @return Whether or not the node got highlighted as a result of this function
  * @type boolean
  */
-function appendCategoryLinks(node, movie){
+function appendListLinks(node, movie){
 	var isHeader = !node.is('A');
 	node.addClass('label_node movie'+movie.id);
-	highlighted = updateCategoryLinks(node, movie);
-	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createCategoriesMenu(movie))){
+	highlighted = updateListLinks(node, movie);
+	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createListsMenu(movie))){
 		$('<span />').addClass('imcm_pulldown_wrapper')
 		.append(
 			$('<div />', {
@@ -207,35 +205,36 @@ function appendCategoryLinks(node, movie){
 
 /*
  * Remove all labels and/or vote currently on the node. Reapply the labels and/or vote according to the new movie object
- * Add the highlight class to the node if it has categories or votes
+ * Add the highlight class to the node if it has movielists or votes
  *
- * @param {HtmlElement} node The node where the categories need to be appended to
+ * @param {HtmlElement} node The node where the movielists need to be appended to
  * @param {MovieObj} movie The movie corresponding with the node
  * @return Whether or not the node got highlighted as a result of this function
  * @type boolean
  */
 
-function updateCategoryLinks(node,movie){
+function updateListLinks(node,movie){
 	var isHeader = !node.is('A');
 	var CFG = isHeader ? CONFIG.header : CONFIG.links;
 	// Remove nodes currently added to the nodes parentnode
 	node.parent().find('.imcm_label').remove();
 	if(movie.isActive()){ // if the movie contains a vote or is added to a movielist
 		node.addClass('imcm_highlight');
-		if(CFG.labels.show && movie.category.length>0){ // show the movieList labels
-			for(var j=0; j<movie.category.length;j++){
+		if(CFG.labels.show && movie.lists.length>0){ // show the movieList labels
+			var listIds = movie.getListIds();
+			for(var j=0; j<listIds.length;j++){
 				// append the movieList label 
-				var settings = {'class':'imcm_label', catid: movie.category[j][0]};
-				settings.html = Categories.getName(settings.catid);
-				settings.href = '#'+settings.catid;
+				var settings = {'class':'imcm_label', listId: listIds[j][0]};
+				settings.html = Lists.getName(settings.listId);
+				settings.href = '#'+settings.listId;
 				if(CFG.labels.redirect){ // onclick redirect to movielist
-					settings.title = 'Go to the movie list for category: '+settings.html;
+					settings.title = 'Go to the movielist: '+settings.html;
 					settings.click = function(){
 						Notification.error('This is not yet working. Movielist id:'+$(this).attr('catid'));	
 						//window.location='http://www.imdb.com/mymovies/list?l='+catid;
 					};
 				} else { // onclick, ask to remove from movielist
-					settings.title = 'Delete movie from category: '+settings.html;
+					settings.title = 'Delete movie from list: '+settings.html;
 					settings.click = function(){
 						if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
 							IMDB.reqMovieAction(movie,$(this).attr('catid')); 
@@ -265,9 +264,9 @@ function updateCategoryLinks(node,movie){
  */
 function updateStatus(movie){
 	l2('Updating all links and headers for movie: '+movie.id);
-	$('.movie'+movie.id+'.label_node').each(function(){updateCategoryLinks($(this),movie);});
+	$('.movie'+movie.id+'.label_node').each(function(){updateListLinks($(this),movie);});
 	$('.movie'+movie.id+'.imcm_menu').find('li').each(function(){
-		$(this).toggleClass('checked', movie.hasCategory($(this).attr('catid')));
+		$(this).toggleClass('checked', movie.hasList($(this).attr('catid')));
 	});
 }	
 
@@ -292,7 +291,7 @@ var IMDB = {
 	test: function(commands){
 		var test = commands || prompt('What do we need to test?','Votes,Lists');
 		if(!test)return;
-		movies.clear();
+		Movies.clear();
 		tests = test.split(',');
 		for(i=0,len=tests.length;i<len;i++){
 			func= IMDB['req'+tests[i]];
@@ -315,10 +314,10 @@ var IMDB = {
 	 */
 	parseVotes: function(response){
 		for(var i=0,j=response.length;i<j;i++){
-			movies.add({tid: response[i].const, vote: response[i].you_rated});
+			Movies.add({tid: response[i].const, vote: response[i].you_rated});
 		};
 		l2(response.length+' votes found');
-		movies.save();
+		Movies.save();
 	},
 	reqLists: function(){
 		return IMDB.xhr({
@@ -337,16 +336,16 @@ var IMDB = {
 		}
 		// watchlist is ommited
 		cats.push([IMDB.watchlistId, 'Watchlist']);
-		// save the categories
-		Categories.set(cats);
+		// save the movielists
+		Lists.set(cats);
 	},
 	/*
-	 * For loop over the different categories
+	 * For loop over the different movielists
 	 * Calls reqMovieList for each
 	 */
 	reqMovieLists: function(){
 		var calls = [];
-		Categories.array.forEach(function(elm,index, arr){
+		Lists.array.forEach(function(elm,index, arr){
 			l3('req Movielist['+elm[0]+']: '+elm[1]);
 			calls.push(IMDB.reqMovieList(elm[0]));
 		});
@@ -365,9 +364,9 @@ var IMDB = {
 	parseMovieList: function(response){
 		let list_id=this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
-			movies.add({tid: response[i].const, categoryid: list_id, controlid: 1});
+			Movies.add({tid: response[i].const, listId: list_id, controlId: 1});
 		}
-		movies.save();
+		Movies.save();
 	},
 	/*
 	 * 
@@ -379,7 +378,7 @@ var IMDB = {
 				'list_id':list_id,
 				'ref_tag':'title',
 		};
-		if(movie.hasCategory(list_id)){
+		if(movie.hasList(list_id)){
 			request.data.action='delete';
 			request.data.list_item_id=movie.getControlId(list_id);
 		}
@@ -390,11 +389,11 @@ var IMDB = {
 	parseMovieAction: function(response){
 		if(response.status=='200'){
 			if(this.data.action=='delete'){ //succesfully deleted
-				this.movie.deleteCategory(this.data.list_id);
+				this.movie.deleteList(this.data.list_id);
 			} else { //succesfully added
-				this.movie.addCategory(this.data.list_id,response.list_item_id);
+				this.movie.addList(this.data.list_id,response.list_item_id);
 			}
-			movies.save();
+			Movies.save();
 			updateStatus(movie);
 		}
 	},
@@ -460,7 +459,7 @@ var IMDB = {
 			l2('Rebuilding cache - manual request');
 			Notification.write('Updating the movie list.');
 		}
-		movies.clear(); // clear the current cache.
+		Movies.clear(); // clear the current cache.
 		$.when(IMDB.reqAuthorId(),IMDB.reqSecurityCheck()).done(function(){
 			$.when(IMDB.reqLists()).done(function(){
 				$.when(IMDB.reqMovieLists(),IMDB.reqVotes())
@@ -476,8 +475,8 @@ var IMDB = {
 		l2('All callbacks for the rebuild script have finished');
 		let onInit = IMDB.onInit;
 		IMDB.onInit=null; // reset onInit boolean
-		if(movies.array.length && Categories.array.length && IMDB.authorId && IMDB.check && IMDB.watchlistId){
-			Notification.write('<b>Cache rebuild</b><br />Lists: '+Categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
+		if(Movies.array.length && Lists.array.length && IMDB.authorId && IMDB.check && IMDB.watchlistId){
+			Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.array.length+'<br />Movies: '+Movies.array.length, 8000,true);
 			if(onInit){ // if the rebuild script was started on page init
 				Page.initCaches(); // reinitialize the page
 			} else if(!CONFIG.debug.test){
@@ -493,7 +492,7 @@ var IMDB = {
 	 */
 	failed: function(){
 		IMDB.onInit=null; // reset onInit boolean
-		Notification.write('<b>Cache rebuild</b><br />Lists: '+Categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
+		Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.array.length+'<br />Movies: '+Movies.array.length, 8000,true);
 		Log.error('Some request failed',this);
 	},
 	/*
@@ -584,37 +583,25 @@ var Notification = {
 /*
  * Object: Used to manage the movie list
  */
-function MovieList(){
-	this.array = [];
-	var obj = this;
+var Movies ={
+	array: [],
 	
 	/*
 	  * Load the stored value
 	  */
-	this.load = function(){
-		var stored = Storage.get('movies'); //read from browser
-		if(stored != undefined)		
-			this.toArray(stored);
-	}
+	load: function(){
+		return this.toArray(Storage.get('movies','[]'));
+	},
 	
-	this.save = function(){
-		var store = this.toString();
-		Storage.set('movies', store); //write to browser
-	}
+	save: function(){
+		return Storage.set('movies', this.toString()); //write to browser
+	},
 	
-	this.clear = function(){
+	clear: function(){
 		this.array = [];
-	}
+	},
 		
-	/*
-	  * Change the object with the new array and store the value
-	  */
-	this.set = function(value){
-		this.array = value;
-		this.save();
-	}
-
-	this.add = function(value){
+	add: function(value){
 		movie = new MovieObj(value);
 		if(exists = this.exists(movie)){
 			return exists.merge(movie);
@@ -622,13 +609,13 @@ function MovieList(){
 			this.array.push(movie);
 			return movie;
 		}
-	}
+	},
 	
 	/*
 	  * Checks if a movie exists in the array
 	  * @return {boolean} False if not exists, movieObj
 	  */
-	this.exists = function(movie){
+	exists: function(movie){
 		if((i=this.array.length)>0){		
 			do{
 				if(this.array[i-1].equals(movie))return this.array[i-1];
@@ -637,26 +624,25 @@ function MovieList(){
 			while(i>0)
 		}
 		return false;
-	}
+	},
 	
-	this.get = function(id){
+	get: function(id){
 		if(movie = this.exists(id))
 			return movie;
 		else
 			return this.add({tid: id});
-	}
+	},
 	
-	this.getByAddress = function(address) {
+	getByAddress: function(address) {
 		tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
 		if (!tid) return false;
 		return this.get(tid[1]);
-	}
-	
+	},
 	
 	/*
 	  * String to Array
 	  */
-	this.toArray = function(string) {
+	toArray: function(string) {
 		var arr = string.split('|');
 		var array = new Array();
 		
@@ -668,13 +654,13 @@ function MovieList(){
 			}
 			while(i>0) 		
 		}
-		this.array = array;
-	}
+		return this.array = array;
+	},
 
 	/*
 	  * Array to String
 	  */
-	this.toString = function() {
+	toString: function() {
 		var string = '';
 		var i=this.array.length;
 		if(i>0){
@@ -686,38 +672,38 @@ function MovieList(){
 			string = string.substring(1);
 		}
 		return string;
-	}
+	},
 }
 
 function MovieObj(){
-	this.category = []; // catid controlid pair
+	this.lists = []; // catid controlid pair
 	
 	if(arguments.length==0)return false;
-	if(typeof arguments[0] == 'string'){ // construct a new movieObj based on a string: tid-vote-category1-category2-categoryN
+	if(typeof arguments[0] == 'string'){ // construct a new movieObj based on a string: tid-vote-list1:control1-list2:control2-listN:controlN
 		arr = arguments[0].split("-");
 		this.id = arr[0].replace("tt","");
 		this.vote = parseInt(arr[1]);		
 		var i=arr.length;
 		while(i>2){
-			this.category.push(arr[i-1].split(':'));
+			this.lists.push(arr[i-1].split(':'));
 			i--;
 		}
 	} else {
-		//from object {tid:, categoryid, vote}
+		//from object {tid:, listId, controlId, vote}
 		var obj = arguments[0];
 		this.id = obj.tid.replace("tt","");
 		this.vote = obj.vote || 0;
-		if(obj.categoryid && obj.controlid)	this.category.push([obj.categoryid,obj.controlid]);
+		if(obj.listId && obj.controlId)	this.lists.push([obj.listId,obj.controlId]);
 	}
 
 	this.isActive = function(){
-		return this.category.length > 0 || this.vote > 0;
+		return this.lists.length > 0 || this.vote > 0;
 	}
 	
-	this.hasCategory = function(id){
-		if(this.category.length<=0)return false;
-		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==id)return true;
+	this.hasList = function(id){
+		if(this.lists.length<=0)return false;
+		for(var i=0;i<this.lists.length;i++){
+			if(this.lists[i][0]==id)return true;
 		}
 		return false;
 	}
@@ -733,40 +719,40 @@ function MovieObj(){
 	this.merge = function(obj){
 		if(!this.equals(obj))return this;
 		if(obj.vote!=false) this.vote = obj.vote;
-		if(obj.category.length){
-			this.category = this.category.concat(obj.category);
+		if(obj.lists.length){
+			this.lists = this.lists.concat(obj.lists);
 		}
 	}
 	
-	this.addCategory = function(categoryId, controlId){
-		this.category.push([categoryId,controlId]);
+	this.addList = function(listId, controlId){
+		this.lists.push([listId,controlId]);
 	}
 	
-	this.deleteCategory = function(id){
-		if(this.category.length<=0)return false;
-		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==id){
-				this.category.splice(i,1);
+	this.deleteList = function(id){
+		if(this.lists.length<=0)return false;
+		for(var i=0;i<this.lists.length;i++){
+			if(this.lists[i][0]==id){
+				this.lists.splice(i,1);
 				return true;
 			}
 		}
 		return false;	
 	}
 
-	this.categoryList = function(){
-		var catList = [];
-		for(var i=0;i<this.category.length;i++){
-			catList.push(this.category[i][0]);
+	this.getListIds = function(){
+		var lists = [];
+		for(var i=0;i<this.lists.length;i++){
+			lists.push(this.lists[i][0]);
 		}
-		return catList.sort();
+		return lists.sort();
 	}
 	
-	this.getControlId = function(category){
-		for(var i=0;i<this.category.length;i++){
-			if(this.category[i][0]==category)
-				return this.category[i][1];
+	this.getControlId = function(list){
+		for(var i=0;i<this.lists.length;i++){
+			if(this.lists[i][0]==list)
+				return this.lists[i][1];
 		}
-		Log.error('(line:833) Failed to get control id for movie:'+this.id+' and category:'+category);
+		Log.error('(line:833) Failed to get control id for movie:'+this.id+' and list:'+list);
 		return false;
 	}
 
@@ -780,9 +766,9 @@ function MovieObj(){
 
 	this.toString = function(){
 		var string = [this.id,this.vote];
-		if(this.category.length>0){
-			for(var i=0;i<this.category.length;i++){
-				string.push(this.category[i].join(':'));
+		if(this.lists.length>0){
+			for(var i=0;i<this.lists.length;i++){
+				string.push(this.lists[i].join(':'));
 			}
 		}
 		return string.join('-');
@@ -793,19 +779,15 @@ function MovieObj(){
  * Object: Used to manage the movie list
  * keeps all the movie lists in an array with key:value is movielistid:name
  * @todo: Rename to MovieLists
- * @todo: Extend from array/object --> iterable
  */
-var Categories = {
+var Lists = {
 	array: [],
 	
 	/*
 	  * Get the stored value
 	  */
 	load: function(){
-		var stored = JSON.parse(Storage.get('categories')); //read from browser
-		if(typeof stored == 'Array'){
-			return this.array = stored;
-		}
+		return this.array = JSON.parse(Storage.get('lists','[]'));
 	},
 	
 	/*
@@ -813,7 +795,7 @@ var Categories = {
 	  */
 	set: function(value){
 		this.array = value;
-		Storage.set('categories', JSON.stringify(this.array)); //write to browser
+		Storage.set('lists', JSON.stringify(this.array));
 	},
 
 	/*
@@ -853,8 +835,6 @@ var Page = {
 	init: function(){
 		if(window.location != window.parent.location)return false; //page not in iframe
 		l2('Initialize script: '+document.location.href);
-		movies = new MovieList(); //should not be instantiated
-		window.IMDB_MCM.Movies = movies;
 		this.initType();
 	},
 	
@@ -914,12 +894,12 @@ var Page = {
 	},
 	initCaches: function(){
 		if(IMDB.setAuthorId(Storage.get('authorId')) && IMDB.setWatchlist(Storage.get('watchlistId')) && IMDB.setSecurity(Storage.get('securityCheck'))){
-			l2('Load movies and categories from cache');
-			Categories.load();
-			movies.load();
-			l1('Movies loaded from cache: '+movies.array.length);
-			l1('Categories loaded from cache: '+Categories.array.length);
-			if(movies.array.length!=0 && Categories.array.length!=0){
+			l2('Load movies and lists from cache');
+			Lists.load();
+			Movies.load();
+			l1('Movies loaded from cache: '+Movies.array.length);
+			l1('Lists loaded from cache: '+Lists.array.length);
+			if(Movies.array.length!=0 && Lists.array.length!=0){
 				return this.initLinks();
 			}
 		}
@@ -933,8 +913,8 @@ var Page = {
 		var mov = this.getMovie();
 		$('A').each(function(){
 			var movie;
-			if((movie = movies.getByAddress(this.href)) && !movie.equals(mov)){
-				if(appendCategoryLinks($(this), movie)){activeLinks++;}
+			if((movie = Movies.getByAddress(this.href)) && !movie.equals(mov)){
+				if(appendListLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
 		});
@@ -979,7 +959,7 @@ var Page = {
 					submitted=deleting=false;
 					if(movie.vote!=vote){
 						movie.setVote(vote);
-						movies.save();
+						Movies.save();
 						l2('Vote changed to '+movie.vote);
 						updateStatus(movie);
 					}
@@ -987,11 +967,11 @@ var Page = {
 			});
 			// --end of vote code
 			
-			appendCategoryLinks($('h1').first(), movie);
-			l2('Adding category menu to the title page');
+			appendListLinks($('h1').first(), movie);
+			l2('Adding list menu to the title page');
 
 			$('<div />').addClass('imcm_catlist aux-content-widget-2')
-				.append(createCategoriesMenu(movie))
+				.append(createListsMenu(movie))
 				.prependTo('#maindetails_sidebar_bottom');
 			
 			if(CONFIG.debug.test)IMDB.test();
@@ -1001,7 +981,7 @@ var Page = {
 		return this.type==type;
 	},
 	getMovie: function(){
-		return this.movie = this.movie || movies.getByAddress(this.loc); 
+		return this.movie = this.movie || Movies.getByAddress(this.loc); 
 	}
 };
 
@@ -1039,12 +1019,11 @@ var Storage = {
 window.IMDB_MCM = {
 		Page: Page,
 		IMDB: IMDB,
-		//Movies: movies, doesnt work because it needs to be instantiated
-		//Lists: categories, idem
+		Movies: Movies,
+		Lists: Lists,
 		Notification: Notification,
 		Storage: Storage,
 		log: Log.show,
-		Categories: Categories,
 };
 
 Page.init();
