@@ -322,16 +322,18 @@ var IMDB = {
 	},
 	reqLists: function(){
 		return IMDB.xhr({
-				url: 'list/_ajax/wlb_dropdown',
-				data: {'tconst':IMDB._const}
+				url: 'list/_ajax/lists',
+				data: {'list_type':'Titles'}
 		});
 	},
 	parseLists: function(response){
 		let cats = [];
-		if(!response.items)return;
-		for(var i=0, j=response.items.length; i<j; i++){
-			let item = response.items[i];
-			cats.push([item.data_list_id,item.wlb_text.replace("MyMovies: ","")]);
+		if(response.status!='200')return;
+		for(var i=0, j=response.lists.length; i<j; i++){
+			let item = response.lists[i];
+			if(item.state=='OK'){
+				cats.push([item.list_id,item.name.replace("MyMovies: ","")]);
+			}
 		}
 		// watchlist is ommited
 		cats.push([IMDB.watchlistId, 'Watchlist']);
@@ -874,8 +876,7 @@ var Page = {
 	},
 	/*
 	 * Get the Username
-	 * Get the AuthorId
-	 * Get the Security Checks
+	 * @TODO: Rewrite with jquery
 	 */
 	initUser: function(){
 		l2('Initialize username' ,2);
@@ -1005,23 +1006,25 @@ var Page = {
 };
 
 var Storage = {
-		prefix: ['', Script.name, '', Page.user, ''].join('***'),
+		prefix: function(key){
+			return [Script.name, Page.user, key].join('***');
+		},
 		
 		remove:function(key) {
-		  localStorage.removeItem(Storage.prefix + key);
+		  localStorage.removeItem(this.prefix(key));
 		},
 		
 		get:function(key, def) {
-		  let val = localStorage.getItem(Storage.prefix + key);
+		  let val = localStorage.getItem(this.prefix(key));
 		  return (null === val && 'undefined' != typeof def) ? def:val;
 		},
 		
 		list:function() {
-		  let prefixLen = Storage.prefix.length;
+		  let prefixLen = this.prefix('').length;
 		  let values = [];
 		  for (var i = 0; i < localStorage.length; i++) {
 		    let k = localStorage.key(i);
-		    if (k.substr(0, prefixLen) === Storage.prefix) {
+		    if (k.substr(0, prefixLen) === this.prefix('')) {
 		      values.push(k.substr(prefixLen));
 		    }
 		  }
@@ -1029,7 +1032,7 @@ var Storage = {
 		},
 		
 		set: function(key, val) {
-		  localStorage.setItem(Storage.prefix + key, val);
+		  localStorage.setItem(this.prefix(key), val);
 		}
 };
 
