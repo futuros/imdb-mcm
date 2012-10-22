@@ -337,8 +337,6 @@ var IMDB = {
 		cats.push([IMDB.watchlistId, 'Watchlist']);
 		// save the categories
 		categories.set(cats);
-		// load the movies for the categories
-		IMDB.reqMovieLists();
 	},
 	/*
 	 * For loop over the different categories
@@ -478,10 +476,10 @@ var IMDB = {
 		IMDB.onInit=null; // reset onInit boolean
 		if(onInit){ // if the rebuild script was started on page init
 			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
-			Page.initMenus(); // reinitialize the page
+			Page.initCaches(); // reinitialize the page
 		} else {
 			if(!CONFIG.debug.test){
-				//window.location.reload(); //reload the page
+				window.location.reload(); //reload the page
 			}
 		}
 	},
@@ -631,8 +629,7 @@ function MovieList(){
 	this.add = function(value){
 		movie = new MovieObj(value);
 		if(exists = this.exists(movie)){
-			exists.merge(movie);
-			return exists;
+			return exists.merge(movie);
 		} else {
 			this.array.push(movie);
 			return movie;
@@ -746,7 +743,7 @@ function MovieObj(){
 	}
 	
 	this.merge = function(obj){
-		if(!this.equals(obj))return false;
+		if(!this.equals(obj))return this;
 		if(obj.vote!=false) this.vote = obj.vote;
 		if(obj.category.length){
 			this.category = this.category.concat(obj.category);

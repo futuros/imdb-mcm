@@ -3,8 +3,6 @@ TODO for 3.0beta release
 Change IMDB.getMovieList to obtain the list_item_id.
 	We need to get the paginated html results
 	
-Make rebuild script follow xhr hierachie found in API.txt
-
 catch add/remove movie via native UI /* if catch is not possible remove element */
 
 Fix link highlighting and pulldowns:
