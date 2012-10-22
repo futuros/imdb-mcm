@@ -149,8 +149,8 @@ function createCategoriesMenu(movie){
 		'movid': movie.id,
 		'class': 'imcm_menu movie'+movie.id,
 	});	
-	for(var i in categories.array){
-		var a = categories.array[i];
+	for(var i in Categories.array){
+		var a = Categories.array[i];
 		let li = $('<li></li>', {
 			title:  'Add/Remove: '+a[1],
 			'catid': a[0],
@@ -226,7 +226,7 @@ function updateCategoryLinks(node,movie){
 			for(var j=0; j<movie.category.length;j++){
 				// append the movieList label 
 				var settings = {'class':'imcm_label', catid: movie.category[j][0]};
-				settings.html = categories.getName(settings.catid);
+				settings.html = Categories.getName(settings.catid);
 				settings.href = '#'+settings.catid;
 				if(CFG.labels.redirect){ // onclick redirect to movielist
 					settings.title = 'Go to the movie list for category: '+settings.html;
@@ -336,7 +336,7 @@ var IMDB = {
 		// watchlist is ommited
 		cats.push([IMDB.watchlistId, 'Watchlist']);
 		// save the categories
-		categories.set(cats);
+		Categories.set(cats);
 	},
 	/*
 	 * For loop over the different categories
@@ -344,7 +344,7 @@ var IMDB = {
 	 */
 	reqMovieLists: function(){
 		var calls = [];
-		categories.array.forEach(function(elm,index, arr){
+		Categories.array.forEach(function(elm,index, arr){
 			l3('req Movielist['+elm[0]+']: '+elm[1]);
 			calls.push(IMDB.reqMovieList(elm[0]));
 		});
@@ -474,13 +474,16 @@ var IMDB = {
 		l2('All callbacks for the rebuild script have finished');
 		let onInit = IMDB.onInit;
 		IMDB.onInit=null; // reset onInit boolean
-		if(onInit){ // if the rebuild script was started on page init
-			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
-			Page.initCaches(); // reinitialize the page
-		} else {
-			if(!CONFIG.debug.test){
-				window.location.reload(); //reload the page
+		if(movies.array.length && Categories.array.length && IMDB.authorId && IMDB.check && IMDB.watchlistId){
+			Notification.write('<b>Cache rebuild</b><br />Lists: '+Categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
+			if(onInit){ // if the rebuild script was started on page init
+				Page.initCaches(); // reinitialize the page
+			} else if(!CONFIG.debug.test){
+				window.setTimeout(window.location.reload,1000); //reload the page
 			}
+		} else {
+			Log.error('Something whent wrong while getting movies information from IMDB.');
+			Notification.error('Something went wrong trying to rebuild the cache. Please try again.');
 		}
 	},
 	/*
@@ -488,7 +491,7 @@ var IMDB = {
 	 */
 	failed: function(){
 		IMDB.onInit=null; // reset onInit boolean
-		Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
+		Notification.write('<b>Cache rebuild</b><br />Lists: '+Categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
 		Log.error('Some request failed',this);
 	},
 	/*
@@ -811,86 +814,49 @@ function MovieObj(){
  * @todo: Rename to MovieLists
  * @todo: Extend from array/object --> iterable
  */
-function CategoryList(){
-	this.string = "";
-	this.array = [];
-	this.name = 'imdb+_'+Page.user+'_categories';
+var Categories = {
+	array: [],
+	name: 'imdb+_'+Page.user+'_categories',
 	
 	/*
 	  * Get the stored value
 	  */
-	this.get = function(){
-		var stored = Storage.get(this.name); //read from browser
-		if(stored != undefined){		
-			this.string = stored;
-			this.array = this.toArray();
+	load: function(){
+		var stored = JSON.parse(Storage.get(Categories.name)); //read from browser
+		if(typeof stored == 'Array'){
+			return Categories.array = stored;
 		}
-	}
+	},
 	
 	/*
 	  * Change the object with the new array and store the value
 	  */
-	this.set = function(value){
-		this.array = value;
-		this.string = this.toString();
-		Storage.set(this.name, this.string); //write to browser
-	}
-
-	/*
-	  * String to Array
-	  */
-	this.toArray = function() {
-		var arr = this.string.split('|');
-		var array = new Array();
-		
-		var i=arr.length;
-		do{
-			arr2 = arr[i-1].split("-");
-			array.push([arr2[0],arr2[1]]);
-			i--;
-		}
-		while(i>0) 		
-		
-		return array;
-	}
-
-	/*
-	  * Array to String
-	  */
-	this.toString = function() {
-		var string = '';
-		if(this.array.length==0)return string;
-		for(var i in this.array){
-			a = this.array[i];
-			string += "|"+a[0]+"-"+a[1];
-		}
-		return string.substring(1);
-	}
+	set: function(value){
+		Categories.array = value;
+		Storage.set(Categories.name, JSON.stringify(Categories.array)); //write to browser
+	},
 
 	/*
 	  * Get a cat id by a name
 	  */
-	this.getId = function(name){
-		for(var i in this.array){
-			a = this.array[i];
+	getId: function(name){
+		for(var i in Categories.array){
+			a = Categories.array[i];
 			if(a[1]==name)return a[0];
 		}
 		return false;
-	}
+	}.
 
 	/*
 	  * Get a name by id
 	  */
-	this.getName = function(id){
-		for(var i in this.array){
-			a = this.array[i];
+	getName: function(id){
+		for(var i in Categories.array){
+			a = Categories.array[i];
 			if(a[0]==id)return a[1];
 		}
 		return false;
 	}
-	
-	// get the value at script start
-	this.get();
 };
 
 /*
@@ -907,6 +873,8 @@ var Page = {
 	init: function(){
 		if(window.location != window.parent.location)return false; //page not in iframe
 		l2('Initialize script: '+document.location.href);
+		movies = new MovieList(); //should not be instantiated
+		window.IMDB_MCM.Movies = movies;
 		Page.initType();
 	},
 	
@@ -968,14 +936,11 @@ var Page = {
 	initCaches: function(){
 		if(IMDB.setAuthorId(Storage.get('authorId')) && IMDB.setWatchlist(Storage.get('watchlistId')) && IMDB.setSecurity(Storage.get('securityCheck'))){
 			l2('Load movies and categories from cache');
-			movies = new MovieList();
+			Categories.load();
 			movies.load();
 			l1('Movies loaded from cache: '+movies.array.length);
-			categories = new CategoryList();
-			l1('Categories loaded from cache: '+categories.array.length);
-			if(movies.array.length!=0 && categories.array.length!=0){
-				window.IMDB_MCM.Movies = movies;
-				window.IMDB_MCM.Categories = categories;
+			l1('Categories loaded from cache: '+Categories.array.length);
+			if(movies.array.length!=0 && Categories.array.length!=0){
 				return Page.initLinks();
 			}
 		}
@@ -1098,6 +1063,7 @@ window.IMDB_MCM = {
 		Notification: Notification,
 		Storage: Storage,
 		log: Log.show,
+		Categories = Categories;
 };
 
 Page.init();
