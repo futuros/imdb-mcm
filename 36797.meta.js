@@ -12,6 +12,6 @@
 // @exclude       	http://*imdb.de/images/*
 // @require			http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js
 // @grant			none
-// @updateURL       https://github.com/futuros/imdb-mcm/blob/master/36797.meta.js
-// @downloadURL     https://github.com/futuros/imdb-mcm/blob/master/36797.user.js
+// @updateURL       https://github.com/futuros/imdb-mcm/raw/master/36797.meta.js
+// @downloadURL     https://github.com/futuros/imdb-mcm/raw/master/36797.user.js
 // ==/UserScript==
