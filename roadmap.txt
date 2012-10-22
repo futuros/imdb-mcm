@@ -1,0 +1,55 @@
+3.0.0
+	Goals
+		- Get the script running again with the latest IMDB site update.
+	See todo.txt
+			
+3.1.0
+	Goals
+		- Configurability
+	Features
+		- Add a script configurator
+		- Add a menu to the login user navigation bar Name's account | IMCM v | Logout | Help
+			- Config
+			- Check for new version
+			- Rebuild cache
+			- About
+		- Add highlights on other peoples my movies lists
+	Fixes
+		- Highlight Recommendation links on title pages
+		- Don't highlighted 'poster'/image links.
+
+3.2.0
+	Goals
+		- Graphics improvements
+	Features
+		- Change colors, etc. via config script
+	Fixes
+		- Improve design of Notifications
+		- Improve the design of the pulldown menus
+			- the open button (v) should be the close button (^)
+		- Vote labels with rounded corners
+		- Nicer labels on imdb links
+		- Improve header on title page
+		
+3.3.0
+	Goals
+		- Enhance functionality
+	Features
+		- Vote for movie via pulldown
+		- Shortcut keys
+			- vote for movie
+			- next episode / prev episode
+			- focus() movielist_menu
+
+3.?
+	- Diagnostics script to test if the script is functioning properly (eg. "display options" in my movies section)
+	- Make the script run on external sites
+		- Add a domain editor to the configurator (requires script to run globally (not sure about this))
+		- Remote login functionality
+	- performance optimizations
+	- improve code documentation
+	- use jquery.ajax instead of custom function
+	- use real console.log/debug function instead of call via l= & e=. Can use c=console.log
+	- http://code.google.com/p/jquery-csv/downloads/detail?name=jquery.csv-0.64.min.js&can=2&q= instead of IMDB.csv
+	
+				
