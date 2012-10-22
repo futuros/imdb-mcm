@@ -75,7 +75,7 @@ var CONFIG = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		level: 0,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
+		level: 2,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
 		popup: true,		// show notifications when something gets deleted or updated 
 		test: (document.location.href.indexOf('tt0278090')!=-1), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
 }	};
@@ -345,10 +345,12 @@ var IMDB = {
 	 * Calls reqMovieList for each
 	 */
 	reqMovieLists: function(){
+		var calls = [];
 		categories.array.forEach(function(elm,index, arr){
 			l3('req Movielist['+elm[0]+']: '+elm[1]);
-			IMDB.reqMovieList(elm[0]);
+			calls.push(IMDB.reqMovieList(elm[0]));
 		});
+		return $.when.apply($,calls);
 	},
 	reqMovieList: function(listId){
 		return IMDB.xhr({
@@ -396,26 +398,20 @@ var IMDB = {
 			updateStatus(movie);
 		}
 	},
-	/* yet to implement */
 	reqAuthorId: function(){
 		return IMDB.xhr({
 			url: 'widget/recommendations/_ajax/get_title_info',
-			data: {
-				'tconst':IMDB._const,
-			},
+			data: {'tconst':IMDB._const},
 			type: 'POST',
 		});
 	},
 	parseAuthorId: function(response){
 		if(response.status=='200'){
-			IMDB.authorId = response.rating_info.uconst;
+			Storage.set('authorId', IMDB.authorId = response.rating_info.uconst);
 		}
 	},
 
 	reqSecurityCheck: function(){
-		if(IMDB.watchlistId && IMDB.check){
-			return false;
-		}
 		return IMDB.xhr({
 			url: 'list/_ajax/watchlist_has',
 			data: {'consts':[IMDB._const]},
@@ -424,8 +420,8 @@ var IMDB = {
 	},
 	parseSecurityCheck: function(response){
 		if(response.status=='200'){
-			IMDB.watchlistId = response.list_id;
-			IMDB.check = response.extra;
+			Storage.set('watchlistId', IMDB.watchlistId = response.list_id);
+			Storage.set('securityCheck', IMDB.check = response.extra);
 		}
 	},
 	
@@ -441,28 +437,20 @@ var IMDB = {
 		if(!request.callback){ // if callback is not supplied 
 			var callbackName = IMDB.findProp(function(p){return IMDB[p]===IMDB.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
 			request.callback = IMDB['parse'+callbackName];
-			if(callbackName == 'Votes' || callbackName == 'MovieList'){
-				IMDB.counter.req++; //increment the number of outstanding calls
-			}
 		}
 		if(typeof request.callback != 'function') throw "invalidCallbackException";
 		
-		// create a callback function(response, request) to the function request.calback
-		request.success = [request.callback,function(){
-			// if all requests completed
-			if(callbackName && (callbackName == 'Votes' || callbackName == 'MovieList')){
-				if(IMDB.counter.req==1+IMDB.counter.resp++)
-					IMDB.finished();
-			}
-		}];
-		
+		request.success = request.callback;
 		request.headers = {'Cookie': document.cookie};
 		request.error = function(r){Log.error(r.responseText);};
 		let settings = request;
 		settings.context=request;
 		return $.ajax(settings);
 	},
-	
+	/*
+	 * Rebuild all caches.
+	 * @param {boolean} onInit: whether or not the call came from the Page.initCache
+	 */
 	rebuild: function(onInit){
 		if(onInit){ // Automatic request on script init
 			IMDB.onInit=true;
@@ -473,8 +461,13 @@ var IMDB = {
 			Notification.write('Updating the movie list.');
 		}
 		movies.clear(); // clear the current cache.
-		IMDB.reqVotes();
-		IMDB.reqLists();
+		$.when(IMDB.reqAuthorId(),IMDB.reqSecurityCheck()).done(function(){
+			$.when(IMDB.reqLists()).done(function(){
+				$.when(IMDB.reqMovieLists(),IMDB.reqVotes())
+					.done(IMDB.finished)
+					.fail(IMDB.failed);
+			}).fail(IMDB.failed);
+		}).fail(IMDB.failed);
 	},
 	/*
 	 * This function is called if all the movies are loaded from the IMDB pages
@@ -483,14 +476,22 @@ var IMDB = {
 		l2('All callbacks for the rebuild script have finished');
 		let onInit = IMDB.onInit;
 		IMDB.onInit=null; // reset onInit boolean
-		IMDB.counter={}; // reset the counters
 		if(onInit){ // if the rebuild script was started on page init
 			Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
 			Page.initMenus(); // reinitialize the page
 		} else {
-			if(!CONFIG.debug.test)
-				window.location.reload(); //reload the page
+			if(!CONFIG.debug.test){
+				//window.location.reload(); //reload the page
+			}
 		}
+	},
+	/*
+	 * If any request from IMDB.rebuild fails this function is called
+	 */
+	failed: function(){
+		IMDB.onInit=null; // reset onInit boolean
+		Notification.write('<b>Cache rebuild</b><br />Lists: '+categories.array.length+'<br />Movies: '+movies.array.length, 8000,true);
+		Log.error('Some request failed',this);
 	},
 	/*
 	 * Transform CSV data in Array with Objects{name:value,...}
@@ -510,6 +511,15 @@ var IMDB = {
 	        }
 	    }
 	    return result;
+	},
+	setWatchlist: function(value){
+		return IMDB.watchlistId = value; 
+	},
+	setSecurity: function(value){
+		return IMDB.check = value; 
+	},
+	setAuthorId: function(value){
+		return IMDB.authorId = value; 
 	},
 
 	/*
@@ -959,21 +969,21 @@ var Page = {
 		Page.initCaches();
 	},
 	initCaches: function(){
-		l2('Load movies and categories from cache');
-		movies = new MovieList();
-		movies.load();
-		l1('Movies loaded from cache: '+movies.array.length);
-		categories = new CategoryList();
-		l1('Categories loaded from cache: '+categories.array.length);
-		if(movies.array.length==0 || categories.array.length==0){
-			l2('Movies OR categories are empty. Rebuilding cache');
-			IMDB.rebuild(true);
-			return false;
-		} else {
-			window.IMDB_MCM.Movies = movies;
-			window.IMDB_MCM.Categories = categories;
-			return Page.initLinks();
+		if(IMDB.setAuthorId(Storage.get('authorId')) && IMDB.setWatchlist(Storage.get('watchlistId')) && IMDB.setSecurity(Storage.get('securityCheck'))){
+			l2('Load movies and categories from cache');
+			movies = new MovieList();
+			movies.load();
+			l1('Movies loaded from cache: '+movies.array.length);
+			categories = new CategoryList();
+			l1('Categories loaded from cache: '+categories.array.length);
+			if(movies.array.length!=0 && categories.array.length!=0){
+				window.IMDB_MCM.Movies = movies;
+				window.IMDB_MCM.Categories = categories;
+				return Page.initLinks();
+			}
 		}
+		IMDB.rebuild(true);
+		return false;
 	},
 	initLinks: function(){
 		l2('init links on page');
