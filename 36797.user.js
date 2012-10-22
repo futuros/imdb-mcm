@@ -929,9 +929,10 @@ var Page = {
 		l2('init links on page');
 		linkCount=0;
 		activeLinks=0;
+		var mov = this.getMovie();
 		$('A').each(function(){
 			var movie;
-			if((movie = movies.getByAddress(this.href)) && !movie.equals(this.getMovie())){
+			if((movie = movies.getByAddress(this.href)) && !movie.equals(mov)){
 				if(appendCategoryLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
