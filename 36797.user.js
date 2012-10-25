@@ -122,9 +122,9 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	h1.label_node .imcm_label {padding: 5px; color: '+CONFIG.header.labels.color.text+' !important;} \
 	.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;} \
 	#tn15title .imcm_vote {font-size:1.5em;font-weight:bold;padding-right:5px;padding-left:5px; margin-left:0px;} \
-	.imcm_high {background-color: '+CONFIG.vote.high.bg+'; color: '+CONFIG.vote.high.text+';} \
-	.imcm_medium {background-color: '+CONFIG.vote.medium.bg+'; color: '+CONFIG.vote.medium.text+';} \
-	.imcm_low {background-color: '+CONFIG.vote.low.bg+'; color: '+CONFIG.vote.high.text+';} \
+	.imcm_10,.imcm_9,.imcm_8 {background-color: '+CONFIG.vote.high.bg+'; color: '+CONFIG.vote.high.text+';} \
+	.imcm_5,.imcm_6,.imcm_7 {background-color: '+CONFIG.vote.medium.bg+'; color: '+CONFIG.vote.medium.text+';} \
+	.imcm_4,.imcm_3,.imcm_2,.imcm_1 {background-color: '+CONFIG.vote.low.bg+'; color: '+CONFIG.vote.high.text+';} \
 	.imcm_pulldown_wrapper {position: relative;} \
 	.imcm_pulldown_link {position: relative;padding:0 5px 0 5px; font-size:.8em;cursor:pointer;} \
 	.imcm_pulldown {position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;} \
@@ -250,8 +250,7 @@ function updateListLinks(node,movie){
 		} //end: add movieList label
 		// Add a vote to the node
 		if(CFG.vote && movie.hasVote()){
-			var className = (movie.getVote() >= 8) ? 'imcm_high' : ((movie.getVote() <5) ? 'imcm_low' :'imcm_medium');
-			tag = $('<span />').addClass('imcm_vote imcm_label '+className)
+			tag = $('<span />').addClass('imcm_vote imcm_label imcm_'+movie.getVote())
 			.html(movie.getVote())
 			.insertAfter(node);
 		}
