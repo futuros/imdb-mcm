@@ -97,7 +97,7 @@ var Log = {
 		if(singleLine){
 			return Log.array;
 		}
-		Log.array.forEach(function(msg){console.log(msg)});
+		Log.array.forEach(function(msg){console.log(msg);});
 		return false;
 	},
 	add: function(msg){
@@ -149,7 +149,7 @@ function createListsMenu(movie){
 	});	
 	for(var i in Lists._items){
 		var item = Lists._items[i];
-		let li = $('<li></li>', {
+		$('<li></li>', {
 			title:  'Add/Remove: '+item.name,
 			'catid': item.id,
 			html: item.name,
@@ -328,12 +328,12 @@ var IMDB = {
 		});
 	},
 	parseLists: function(response){
-		let cats = [];
+		var cats = [];
 		if(response.status!='200')return;
 		for(var i=0, j=response.lists.length; i<j; i++){
-			let item = response.lists[i];
+			var item = response.lists[i];
 			if(item.state=='OK'){
-				cats.push({id:item.list_id,name:item.name.replace("MyMovies: ","")});
+				cats.push({id: item.list_id, name: item.name.replace("MyMovies: ","")});
 			}
 		}
 		// watchlist is ommited
@@ -345,13 +345,13 @@ var IMDB = {
 		return IMDB.xhr({url: 'user/'+IMDB.authorId+'/lists?tab=all&filter=titles',});
 	},
 	parseHLists: function(response){
-		let cats = [];
+		var cats = [];
 		$response = $(response);
 		$response.find('.your_lists .lists tr.row').each(function(){
-			var $row = $(this);
-			var id = $row.attr('id');
-			var name = $row.find('.name a').html().replace("MyMovies: ","");
-			var count = parseInt($row.find('.name span').html().match(/\((\d+)/)[1]);
+			var $row = $(this),
+				id = $row.attr('id'),
+				name = $row.find('.name a').html().replace("MyMovies: ",""),
+				count = parseInt($row.find('.name span').html().match(/\((\d+)/)[1]);
 			cats.push({id:id,name:name,count:count});
 		});
 		// watchlist is ommited
@@ -389,7 +389,7 @@ var IMDB = {
 	 * 
 	 */
 	parseMovieList: function(response){
-		let list_id=this.data.list_id;
+		var list_id = this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
 			Movies.get(response[i].const.replace('tt','')).addListItem(list_id, 1);
 		}
@@ -576,9 +576,10 @@ var IMDB = {
 	 * @return property name
 	 */
     findProp: function(callback){
-        for(p in IMDB){
-            if (IMDB.hasOwnProperty(p) && callback(p))
+        for(var p in IMDB){
+            if (IMDB.hasOwnProperty(p) && callback(p)){
                return(p);
+            }
         }
         return false;
     }
@@ -666,7 +667,7 @@ var Movies = $.extend(true, {}, StoredList, {
 	 * @return movieObj;
 	 */
     get: function(id){
-        var obj = this.find(id) || this._create({id:id});
+        var obj = this.find(id) || this._create({id: id});
         return new this._class(obj);
     },
     getByAddress: function(address){
@@ -939,10 +940,10 @@ var Storage = {
 		},
 		
 		list:function() {
-		  let prefixLen = this.prefix('').length;
-		  let values = [];
+		  var prefixLen = this.prefix('').length;
+		  var values = [];
 		  for (var i = 0; i < localStorage.length; i++) {
-		    let k = localStorage.key(i);
+		    var k = localStorage.key(i);
 		    if (k.substr(0, prefixLen) === this.prefix('')) {
 		      values.push(k.substr(prefixLen));
 		    }
@@ -953,7 +954,7 @@ var Storage = {
 		set: function(key, val, stringify) {
 			val = (stringify)?JSON.stringify(val):val;
 			localStorage.setItem(this.prefix(key), val);
-		}
+		},
 };
 
 window.IMDB_MCM = {
