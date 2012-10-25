@@ -143,16 +143,16 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
  */
 function createListsMenu(movie){
 	var menu = $('<ul></ul>', {
-		name:    'cats_'+movie.id,
-		'movid': movie.id,
-		'class': 'imcm_menu movie'+movie.id,
+		name:    'cats_'+movie.getId(),
+		'movid': movie.getId(),
+		'class': 'imcm_menu movie'+movie.getId(),
 	});	
-	for(var i in Lists.array){
-		var a = Lists.array[i];
+	for(var i in Lists._items){
+		var item = Lists._items[i];
 		let li = $('<li></li>', {
-			title:  'Add/Remove: '+a[1],
-			'catid': a[0],
-			html: a[1],
+			title:  'Add/Remove: '+item.name,
+			'catid': item.id,
+			html: item.name,
 		})
 		.click(function(){
 			var node = $(this);
@@ -160,11 +160,11 @@ function createListsMenu(movie){
 			movie = Movies.get(node.parent().attr('movid'));
 			node.addClass('busy');
 			IMDB.reqMovieAction(movie,node.attr('catid'))
-				.success(function(){node.toggleClass('checked',this.movie.hasList(this.data.list_id));})
+				.success(function(){node.toggleClass('checked',this.movie.inList(this.data.list_id));})
 				.complete(function(){node.removeClass('busy');});
 			return false;
 		})		
-		.toggleClass('checked', movie.hasList(a[0]))
+		.toggleClass('checked', movie.inList(item.id))
 		.appendTo(menu);
 	}
 	return menu;
@@ -181,7 +181,7 @@ function createListsMenu(movie){
  */
 function appendListLinks(node, movie){
 	var isHeader = !node.is('A');
-	node.addClass('label_node movie'+movie.id);
+	node.addClass('label_node movie'+movie.getId());
 	highlighted = updateListLinks(node, movie);
 	if(CONFIG.links.pulldown && !isHeader && (changeMenu = createListsMenu(movie))){
 		$('<span />').addClass('imcm_pulldown_wrapper')
@@ -220,24 +220,27 @@ function updateListLinks(node,movie){
 	node.parent().find('.imcm_label').remove();
 	if(movie.isActive()){ // if the movie contains a vote or is added to a movielist
 		node.addClass('imcm_highlight');
-		if(CFG.labels.show && movie.lists.length>0){ // show the movieList labels
-			var listIds = movie.getListIds();
-			for(var j=0; j<listIds.length;j++){
-				// append the movieList label 
-				var settings = {'class':'imcm_label', listId: listIds[j][0]};
-				settings.html = Lists.getName(settings.listId);
-				settings.href = '#'+settings.listId;
+		if(CFG.labels.show && movie.listLength()>0){ // show the movieList labels
+			var listItems = movie.getListItems();
+			for(var i=0, j=listItems.length;i<j;i++){
+				// append the movieList label
+				var list = listItems[i];
+				var settings = {
+						'class':'imcm_label', 
+						html: list.name,
+						href: '#'+list.id
+					};
 				if(CFG.labels.redirect){ // onclick redirect to movielist
-					settings.title = 'Go to the movielist: '+settings.html;
+					settings.title = 'Go to the movielist: '+list.name;
 					settings.click = function(){
-						Notification.error('This is not yet working. Movielist id:'+$(this).attr('catid'));	
+						Notification.error('This is not yet working. Movielist id:'+list.id);	
 						//window.location='http://www.imdb.com/mymovies/list?l='+catid;
 					};
 				} else { // onclick, ask to remove from movielist
-					settings.title = 'Delete movie from list: '+settings.html;
+					settings.title = 'Delete movie from list: '+list.name;
 					settings.click = function(){
-						if(!CFG.labels.confirmation || confirm('Delete movie from '+$(this).html()+'?')){
-							IMDB.reqMovieAction(movie,$(this).attr('catid')); 
+						if(!CFG.labels.confirmation || confirm('Delete movie from '+list.name+'?')){
+							IMDB.reqMovieAction(movie,list.id); 
 						}
 						return false;
 					};
@@ -246,10 +249,10 @@ function updateListLinks(node,movie){
 			}
 		} //end: add movieList label
 		// Add a vote to the node
-		if(CFG.vote && movie.vote>0){
-			var className = (movie.vote >= 8) ? 'imcm_high' : ((movie.vote <5) ? 'imcm_low' :'imcm_medium');
+		if(CFG.vote && movie.hasVote()){
+			var className = (movie.getVote() >= 8) ? 'imcm_high' : ((movie.getVote() <5) ? 'imcm_low' :'imcm_medium');
 			tag = $('<span />').addClass('imcm_vote imcm_label '+className)
-			.html(movie.vote)
+			.html(movie.getVote())
 			.insertAfter(node);
 		}
 		return true; // movie should be highlighted
@@ -263,10 +266,10 @@ function updateListLinks(node,movie){
  * Update the status of the movie for all links refering to the specified movie.
  */
 function updateStatus(movie){
-	l2('Updating all links and headers for movie: '+movie.id);
-	$('.movie'+movie.id+'.label_node').each(function(){updateListLinks($(this),movie);});
-	$('.movie'+movie.id+'.imcm_menu').find('li').each(function(){
-		$(this).toggleClass('checked', movie.hasList($(this).attr('catid')));
+	l2('Updating all links and headers for movie: '+movie.getId());
+	$('.movie'+movie.getId()+'.label_node').each(function(){updateListLinks($(this),movie);});
+	$('.movie'+movie.getId()+'.imcm_menu').find('li').each(function(){
+		$(this).toggleClass('checked', movie.inList($(this).attr('catid')));
 	});
 }	
 
@@ -314,7 +317,7 @@ var IMDB = {
 	 */
 	parseVotes: function(response){
 		for(var i=0,j=response.length;i<j;i++){
-			Movies.add({tid: response[i].const, vote: response[i].you_rated});
+			Movies.get(response[i].const.replace('tt','')).setVote(response[i].you_rated);
 		};
 		l2(response.length+' votes found');
 		Movies.save();
@@ -331,11 +334,11 @@ var IMDB = {
 		for(var i=0, j=response.lists.length; i<j; i++){
 			let item = response.lists[i];
 			if(item.state=='OK'){
-				cats.push([item.list_id,item.name.replace("MyMovies: ","")]);
+				cats.push({id:item.list_id,name:item.name.replace("MyMovies: ","")});
 			}
 		}
 		// watchlist is ommited
-		cats.push([IMDB.watchlistId, 'Watchlist']);
+		cats.push({id:IMDB.watchlistId, name:'Watchlist'});
 		// save the movielists
 		Lists.set(cats);
 	},
@@ -350,12 +353,12 @@ var IMDB = {
 			var id = $row.attr('id');
 			var name = $row.find('.name a').html().replace("MyMovies: ","");
 			var count = parseInt($row.find('.name span').html().match(/\((\d+)/)[1]);
-			cats.push([id,name,count]);
+			cats.push({id:id,name:name,count:count});
 		});
 		// watchlist is ommited
 		var watchlistCount = $response.find('div.watchlist b a').html().match(/\((\d+)\)/);
 		watchlistCount = (watchlistCount)?parseInt(watchlistCount[1]):50;
-		cats.push([IMDB.watchlistId, 'Watchlist', watchlistCount]);
+		cats.push({id:IMDB.watchlistId, name:'Watchlist', count:watchlistCount});
 		// save the movielists
 		Lists.set(cats);
 	},
@@ -365,12 +368,12 @@ var IMDB = {
 	 */
 	reqMovieLists: function(){
 		var calls = [];
-		Lists.array.forEach(function(elm,index, arr){
-			l3('req Movielist['+elm[0]+']: '+elm[1]);
+		Lists._items.forEach(function(elm,index, arr){
+			l3('req Movielist['+elm.id+']: '+elm.name);
 			//calls.push(IMDB.reqMovieList(elm[0]));
 			var start=1;
-			while(start<elm[2]){
-				calls.push(IMDB.reqHtmlList(elm[0],start));
+			while(start<elm.count){
+				calls.push(IMDB.reqHtmlList(elm.id,start));
 				start+=250;
 			}
 		});
@@ -389,7 +392,7 @@ var IMDB = {
 	parseMovieList: function(response){
 		let list_id=this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
-			Movies.add({tid: response[i].const, listId: list_id, controlId: 1});
+			Movies.get(response[i].const.replace('tt','')).addListItem(list_id, 1);
 		}
 	},
 	reqHtmlList: function(listId,start){
@@ -408,7 +411,7 @@ var IMDB = {
 			var rate = $row.find('.rating-list');
 			if(rate && rate.attr('id')){
 				var tt=rate.attr('id').split('|')[0];
-				Movies.add({tid:tt, listId:listId,controlId:$row.attr('data-item-id')});
+				Movies.get(tt.replace('tt','')).addListItem(listId,$row.attr('data-item-id'));
 			}
 		});
 	},
@@ -418,13 +421,13 @@ var IMDB = {
 	reqMovieAction: function(movie,list_id){
 		let request = {url:'list/_ajax/edit', type:'POST'};
 		request.data = {
-				'const':'tt'+movie.id,
+				'const':'tt'+movie.getId(),
 				'list_id':list_id,
 				'ref_tag':'title',
 		};
-		if(movie.hasList(list_id)){
+		if(movie.inList(list_id)){
 			request.data.action='delete';
-			request.data.list_item_id=movie.getControlId(list_id);
+			request.data.list_item_id=movie.getListItemId(list_id);
 		}
 		request.data[IMDB.check.name]=IMDB.check.value;
 		request.movie = movie;
@@ -433,12 +436,12 @@ var IMDB = {
 	parseMovieAction: function(response){
 		if(response.status=='200'){
 			if(this.data.action=='delete'){ //succesfully deleted
-				this.movie.deleteList(this.data.list_id);
+				this.movie.removeListItem(this.data.list_id);
 			} else { //succesfully added
-				this.movie.addList(this.data.list_id,response.list_item_id);
+				this.movie.addListItem(this.data.list_id,response.list_item_id);
 			}
 			Movies.save();
-			updateStatus(movie);
+			updateStatus(this.movie);
 		}
 	},
 	reqAuthorId: function(){
@@ -519,9 +522,9 @@ var IMDB = {
 		l2('All callbacks for the rebuild script have finished');
 		let onInit = IMDB.onInit;
 		IMDB.onInit=null; // reset onInit boolean
-		if(Movies.array.length && Lists.array.length && IMDB.authorId && IMDB.check && IMDB.watchlistId){
+		if(Movies.length() && Lists.length() && IMDB.authorId && IMDB.check && IMDB.watchlistId){
 			Movies.save();
-			Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.array.length+'<br />Movies: '+Movies.array.length, 8000,true);
+			Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.length()+'<br />Movies: '+Movies.length(), 8000,true);
 			if(onInit){ // if the rebuild script was started on page init
 				Page.initCaches(); // reinitialize the page
 			} else if(!CONFIG.debug.test){
@@ -537,7 +540,7 @@ var IMDB = {
 	 */
 	failed: function(){
 		IMDB.onInit=null; // reset onInit boolean
-		Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.array.length+'<br />Movies: '+Movies.array.length, 8000,true);
+		Notification.write('<b>Cache rebuild</b><br />Lists: '+Lists.length()+'<br />Movies: '+Movies.length(), 8000,true);
 		Log.error('Some request failed',this);
 	},
 	/*
@@ -625,246 +628,138 @@ var Notification = {
 	}
 };
 
-/*
- * Object: Used to manage the movie list
- */
-var Movies ={
-	array: [],
-	
-	/*
-	  * Load the stored value
-	  */
-	load: function(){
-		return this.toArray(Storage.get('movies','[]'));
-	},
-	
+var StoredList = {
+	_items: [],
+	_name: null,
 	save: function(){
-		return Storage.set('movies', this.toString()); //write to browser
+		return Storage.set(this._name,this._items,true);
 	},
-	
-	clear: function(){
-		this.array = [];
-	},
-		
-	add: function(value){
-		movie = new MovieObj(value);
-		if(exists = this.exists(movie)){
-			return exists.merge(movie);
-		} else {
-			this.array.push(movie);
-			return movie;
-		}
-	},
-	
-	/*
-	  * Checks if a movie exists in the array
-	  * @return {boolean} False if not exists, movieObj
-	  */
-	exists: function(movie){
-		if((i=this.array.length)>0){		
-			do{
-				if(this.array[i-1].equals(movie))return this.array[i-1];
-				i--;
-			}
-			while(i>0)
-		}
-		return false;
-	},
-	
-	get: function(id){
-		if(movie = this.exists(id))
-			return movie;
-		else
-			return this.add({tid: id});
-	},
-	
-	getByAddress: function(address) {
-		tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
-		if (!tid) return false;
-		return this.get(tid[1]);
-	},
-	
-	/*
-	  * String to Array
-	  */
-	toArray: function(string) {
-		var arr = string.split('|');
-		var array = new Array();
-		
-		var i=arr.length;
-		if(i>0){
-			do{
-				array.push(new MovieObj(arr[i-1]));
-				i--;
-			}
-			while(i>0) 		
-		}
-		return this.array = array;
-	},
-
-	/*
-	  * Array to String
-	  */
-	toString: function() {
-		var string = '';
-		var i=this.array.length;
-		if(i>0){
-			do{
-				string += "|"+this.array[i-1].toString();
-				i--;
-			}
-			while(i>0) 		
-			string = string.substring(1);
-		}
-		return string;
-	},
-}
-
-function MovieObj(){
-	this.lists = []; // catid controlid pair
-	
-	if(arguments.length==0)return false;
-	if(typeof arguments[0] == 'string'){ // construct a new movieObj based on a string: tid-vote-list1:control1-list2:control2-listN:controlN
-		arr = arguments[0].split("-");
-		this.id = arr[0].replace("tt","");
-		this.vote = parseInt(arr[1]);		
-		var i=arr.length;
-		while(i>2){
-			this.lists.push(arr[i-1].split(':'));
-			i--;
-		}
-	} else {
-		//from object {tid:, listId, controlId, vote}
-		var obj = arguments[0];
-		this.id = obj.tid.replace("tt","");
-		this.vote = obj.vote || 0;
-		if(obj.listId && obj.controlId)	this.lists.push([obj.listId,obj.controlId]);
-	}
-
-	this.isActive = function(){
-		return this.lists.length > 0 || this.vote > 0;
-	}
-	
-	this.hasList = function(id){
-		if(this.lists.length<=0)return false;
-		for(var i=0;i<this.lists.length;i++){
-			if(this.lists[i][0]==id)return true;
-		}
-		return false;
-	}
-	
-	this.hasVote = function(){
-		return (this.vote!=0);
-	}
-	
-	this.setVote = function(vote){
-		this.vote = vote;
-	}
-	
-	this.merge = function(obj){
-		if(!this.equals(obj))return this;
-		if(obj.vote!=false) this.vote = obj.vote;
-		if(obj.lists.length){
-			this.lists = this.lists.concat(obj.lists);
-		}
-	}
-	
-	this.addList = function(listId, controlId){
-		this.lists.push([listId,controlId]);
-	}
-	
-	this.deleteList = function(id){
-		if(this.lists.length<=0)return false;
-		for(var i=0;i<this.lists.length;i++){
-			if(this.lists[i][0]==id){
-				this.lists.splice(i,1);
-				return true;
-			}
-		}
-		return false;	
-	}
-
-	this.getListIds = function(){
-		var lists = [];
-		for(var i=0;i<this.lists.length;i++){
-			lists.push(this.lists[i][0]);
-		}
-		return lists.sort();
-	}
-	
-	this.getControlId = function(list){
-		for(var i=0;i<this.lists.length;i++){
-			if(this.lists[i][0]==list)
-				return this.lists[i][1];
-		}
-		Log.error('(line:833) Failed to get control id for movie:'+this.id+' and list:'+list);
-		return false;
-	}
-
-	this.equals = function(obj){
-		if(obj instanceof MovieObj){
-			return this.id === obj.id;
-		} else {
-			return this.id==obj;
-		}
-	}
-
-	this.toString = function(){
-		var string = [this.id,this.vote];
-		if(this.lists.length>0){
-			for(var i=0;i<this.lists.length;i++){
-				string.push(this.lists[i].join(':'));
-			}
-		}
-		return string.join('-');
-	}
-}
-
-/*
- * Object: Used to manage the movie list
- * keeps all the movie lists in an array with key:value is movielistid:name
- * @todo: Rename to MovieLists
- */
-var Lists = {
-	array: [],
-	
-	/*
-	  * Get the stored value
-	  */
 	load: function(){
-		return this.array = JSON.parse(Storage.get('lists','[]'));
+		return this._items = Storage.get(this._name,[],true);
 	},
-	
-	/*
-	  * Change the object with the new array and store the value
-	  */
-	set: function(value){
-		this.array = value;
-		Storage.set('lists', JSON.stringify(this.array));
+	clear: function(){
+		this._items = [];
 	},
+    /*
+     * @return movieObj or null
+     */
+    find: function(id){
+        for(var i=0,j=this._items.length;i<j;i++){
+            if(this._items[i].id===id){
+                return this._items[i];
+            }
+        }
+        return null;
+    },
+    /*
+     * @return {Int} Number of items in the list
+     */
+    length: function(){
+        return this._items.length;
+    },
+};
 
-	/*
-	  * Get a cat id by a name
-	  */
-	getId: function(name){
-		for(var i in this.array){
-			a = this.array[i];
-			if(a[1]==name)return a[0];
+var Movies = $.extend(true, {}, StoredList, {
+	_class: Movie,
+	_name: 'Movies',
+    /*
+	 * Always returns a MovieObj if none exists creates a new one
+	 * @return movieObj;
+	 */
+    get: function(id){
+        var obj = this.find(id) || this._create({id:id});
+        return new this._class(obj);
+    },
+    getByAddress: function(address){
+		var id = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
+		if (!id) return false;
+		return this.get(id[1]);
+    },
+    /*
+     * @return movieObj
+     */
+    _create: function(object){
+        this._items.push(object);
+        return object;
+    },
+});
+
+var Lists = $.extend(true, {}, StoredList, {
+	_name: 'Lists',
+	set: function(items){
+		this._items = items;
+		this.save();
+	},
+});
+
+function Movie(object){
+    object.lists = object.lists || [];
+	this._object = object;
+};
+$.extend(Movie.prototype, {
+	getId: function(){
+		return this._object.id;
+	},
+	setVote: function(vote){
+		this._object.vote = vote;
+        return this;
+    },
+    getVote: function(){
+    	return this._object.vote;
+    },
+    hasVote: function(){
+    	return this._object.vote && true;
+    },
+    equals: function(object){
+    	return (!object)?false:(this.getId() == object.getId());
+	},
+    addListItem: function(listId, listItemId){
+        this._object.lists.push([listId,listItemId]);
+        return this;
+    },
+    removeListItem: function(listId){
+		for(var i=0,j=this._object.lists.length;i<j;i++){
+			if(this._object.lists[i][0]==listId){
+				this._object.lists.splice(i,1);
+				return this;
+			}
+		}
+		return this;
+    },
+	getListItem: function(listId){
+		for(var i=0,j=this._object.lists.length;i<j;i++){
+			if(this._object.lists[i][0]==listId){
+				return this._object.lists[i];
+			}
 		}
 		return false;
 	},
-
-	/*
-	  * Get a name by id
-	  */
-	getName: function(id){
-		for(var i in this.array){
-			a = this.array[i];
-			if(a[0]==id)return a[1];
+	getListItemId: function(listId){
+		return (listItem = this.getListItem(listId)) ? listItem[1] : false;
+	},
+    inList: function(listId){
+    	return this.getListItem(listId) && true;
+    },
+    listLength: function(){
+    	return this._object.lists.length;
+    },
+    isActive: function(){
+    	return this.listLength()>0 || this.hasVote();
+    },
+    /*
+     * @return {Array} An array of list item object with {listId, listName, listItemId}
+     */
+    getListItems: function(){
+        var items = [];
+		for(var i=0,j=this._object.lists.length;i<j;i++){
+			var item = this._object.lists[i];
+			items.push({id: item[0], itemId: item[1], name: Lists.find(item[0]).name});
 		}
-		return false;
-	}
-}
+    	items.sort(function(a,b){return (a.name<b.name)?-1:(a.name>b.name)?1:0;});
+    	return items;
+        return this._object.lists || [];
+    },
+});
 
 /*
  * Object to handle information about the page if it is a title page
@@ -942,9 +837,9 @@ var Page = {
 			l2('Load movies and lists from cache');
 			Lists.load();
 			Movies.load();
-			l1('Movies loaded from cache: '+Movies.array.length);
-			l1('Lists loaded from cache: '+Lists.array.length);
-			if(Movies.array.length!=0 && Lists.array.length!=0){
+			l1('Movies loaded from cache: '+Movies.length());
+			l1('Lists loaded from cache: '+Lists.length());
+			if(Movies.length()!=0 && Lists.length()!=0){
 				return this.initLinks();
 			}
 		}
@@ -1002,10 +897,10 @@ var Page = {
 				} else if(submitted){ // node no longer marked as pending, but something was submitted
 					vote = (deleting)?0:$(this).prev().children().first().html();
 					submitted=deleting=false;
-					if(movie.vote!=vote){
+					if(movie.getVote()!=vote){
 						movie.setVote(vote);
 						Movies.save();
-						l2('Vote changed to '+movie.vote);
+						l2('Vote changed to '+movie.getVote());
 						updateStatus(movie);
 					}
 				} // else {do nothing, just a hover over the votes}
@@ -1026,7 +921,7 @@ var Page = {
 		return this.type==type;
 	},
 	getMovie: function(){
-		return this.movie = this.movie || Movies.getByAddress(this.loc); 
+		return this.movie = this.movie || Movies.getByAddress(this.loc);
 	}
 };
 
@@ -1036,12 +931,12 @@ var Storage = {
 		},
 		
 		remove:function(key) {
-		  localStorage.removeItem(this.prefix(key));
+			localStorage.removeItem(this.prefix(key));
 		},
 		
-		get:function(key, def) {
-		  let val = localStorage.getItem(this.prefix(key));
-		  return (null === val && 'undefined' != typeof def) ? def:val;
+		get:function(key, def, parse) {
+			var val = localStorage.getItem(this.prefix(key));
+			return (null === val && 'undefined' != typeof def) ? def:(parse)?JSON.parse(val):val;
 		},
 		
 		list:function() {
@@ -1056,8 +951,9 @@ var Storage = {
 		  return values;
 		},
 		
-		set: function(key, val) {
-		  localStorage.setItem(this.prefix(key), val);
+		set: function(key, val, stringify) {
+			val = (stringify)?JSON.stringify(val):val;
+			localStorage.setItem(this.prefix(key), val);
 		}
 };
 
