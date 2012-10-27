@@ -75,7 +75,7 @@ var CONFIG = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		level: 0,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
+		level: 3,			// prints info to the error console; level 0: nothing (best performance & useability), 1: basic log messages, 2: all debug messages, 3: debug info for scriptwriter; 
 		popup: true,		// show notifications when something gets deleted or updated 
 		test: false,//(document.location.href.indexOf('tt0278090')!=-1), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
 }	};
@@ -682,6 +682,10 @@ var Movies ={
 		if (!tid) return false;
 		return this.get(tid[1]);
 	},
+	getIdByAddress: function(address) {
+		tid = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
+		return (tid)?tid[1]:false;
+	},
 	
 	/*
 	  * String to Array
@@ -875,8 +879,9 @@ var Lists = {
  */
 var Page = {
 	TYPE: {title: 0, mymovies: 1, imdb: 2, external: 3},
-	
+	startTime: 0,
 	init: function(){
+		this.startTime = $.now();
 		if(window.location != window.parent.location)return false; //page not in iframe
 		l2('Initialize script: '+document.location.href);
 		this.initType();
@@ -944,6 +949,7 @@ var Page = {
 			l1('Movies loaded from cache: '+Movies.array.length);
 			l1('Lists loaded from cache: '+Lists.array.length);
 			if(Movies.array.length!=0 && Lists.array.length!=0){
+				console.log('caches initialized in: '+(($.now())-this.startTime)+'ms.')
 				return this.initLinks();
 			}
 		}
@@ -954,10 +960,11 @@ var Page = {
 		l2('init links on page');
 		linkCount=0;
 		activeLinks=0;
-		var mov = this.getMovie();
-		$('A').each(function(){
-			var movie;
-			if((movie = Movies.getByAddress(this.href)) && !movie.equals(mov)){
+		var mov = Movies.getIdByAddress(this.loc);
+		$('A[href^="/title/tt"]').each(function(){
+			var id,movie;
+			if((id = Movies.getIdByAddress(this.href)) && id!=mov){
+				movie = Movies.get(id);
 				if(appendListLinks($(this), movie)){activeLinks++;}
 				linkCount++;			
 			}
@@ -969,6 +976,7 @@ var Page = {
 		if(CONFIG.pulldown){
 			document.body.addEventListener('click', function(){if(activePulldown!=null){$(activePulldown).addClass('imcm_hide');}}, true);
 		}
+		console.log('Links initialized in: '+($.now()-this.startTime)+'ms.')
 		this.start();
 	},
 	start: function(){
@@ -1017,7 +1025,8 @@ var Page = {
 			$('<div />').addClass('imcm_catlist aux-content-widget-2')
 				.append(createListsMenu(movie))
 				.prependTo('#maindetails_sidebar_bottom');
-			
+
+			console.log('Scripts finished in: '+($.now()-this.startTime)+'ms.')
 			if(CONFIG.debug.test)IMDB.test();
 		}
 	},
