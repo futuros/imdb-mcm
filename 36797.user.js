@@ -4,7 +4,7 @@
 // @description     Improvements for IMDB My Movies. Now you can REALLY use Imdb to manage your Must-See lists and collections 
 // @copyright       2008+, Futuros
 // @license         Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
-// @version         3.0
+// @version         3.1
 // @match           http://*.imdb.com/*
 // @match           http://*.imdb.de/*
 // @exclude         http://i.imdb.com/*
@@ -19,13 +19,13 @@
 /** @constant */
 var Script = {
 	name: 'IMDb Movie Collection Manager',
-	version: '3.0',
+	version: '3.1',
 };
 
 /**
  * @name 	IMDB Movie Collection Manager
  * @author	Futuros
- * @version	3.0
+ * @version	3.1
  */
 
 /*

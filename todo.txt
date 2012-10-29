@@ -1,0 +1,11 @@
+3.1.0
+	Features
+		- Add a script configurator
+		- Add a menu to the login user navigation bar Name's account | IMCM v | Logout | Help
+			- Config
+			- Check for new version
+			- Rebuild cache
+			- About
+		- option to remove add to watchlist menu
+	Fixes
+		- Highlight Recommendation links on title pages
