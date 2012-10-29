@@ -315,30 +315,9 @@ var Imdb = {
 		Movies.save();
 	},
 	reqLists: function(){
-		return Imdb.xhr({
-				url: 'list/_ajax/lists',
-				data: {'list_type':'Titles'}
-		});
-	},
-	parseLists: function(response){
-		var cats = [];
-		if(response.status!='200')return;
-		for(var i=0, j=response.lists.length; i<j; i++){
-			var item = response.lists[i];
-			if(item.state=='OK'){
-				cats.push({id: item.list_id, name: item.name.replace("MyMovies: ","")});
-			}
-		}
-		// watchlist is ommited
-		cats.push({id:Imdb.watchlistId, name:'Watchlist'});
-		Log.f('stats')(cats.length+' movielists found');
-		// save the movielists
-		Lists.set(cats);
-	},
-	reqHLists: function(){
 		return Imdb.xhr({url: 'user/'+Imdb.authorId+'/lists?tab=all&filter=titles',});
 	},
-	parseHLists: function(response){
+	parseLists: function(response){
 		var cats = [];
 		var $response = $(response);
 		$response.find('.your_lists .lists tr.row').each(function(){
@@ -362,40 +341,22 @@ var Imdb = {
 	reqMovieLists: function(){
 		var calls = [];
 		Lists._items.forEach(function(elm,index, arr){
-			Log.f('xhr')('req Movielist['+elm.id+']: '+elm.name);
-			//calls.push(Imdb.reqMovieList(elm[0]));
 			var start=1;
 			while(start<elm.count){
-				calls.push(Imdb.reqHtmlList(elm.id,start));
+				calls.push(Imdb.reqMovieList(elm.id,start));
 				start+=250;
 			}
 		});
 		return $.when.apply($,calls);
 	},
-	reqMovieList: function(listId){
-		return Imdb.xhr({
-					url: 'list/export',
-					data: {'list_id':listId, 'author_id':Imdb.authorId},
-					dataFilter: Imdb.csvFilter,
-		});
-	},
-	/*
-	 * 
-	 */
-	parseMovieList: function(response){
-		var list_id = this.data.list_id;
-		for(var i=0,j=response.length;i<j;i++){
-			Movies.get(parseInt(response[i].const.replace('tt','')),10).addListItem(list_id, 1);
-		}
-	},
-	reqHtmlList: function(listId,start){
+	reqMovieList: function(listId,start){
 		var _start = start || 1;
 		return Imdb.xhr({
 			url: 'list/'+listId+'/?view=compact',
 			data: {'start':_start, list_id:listId},
 		});
 	},
-	parseHtmlList: function(response){
+	parseMovieList: function(response){
 		$('#progress').append(' .');		
 		var listId = this.data.list_id;
 		var $response = $(response);
@@ -503,7 +464,7 @@ var Imdb = {
 		var progress = $('#progress');
 		$.when(Imdb.reqAuthorId(),Imdb.reqSecurityCheck()).done(function(){
 			progress.append(' .');
-			$.when(Imdb.reqHLists()).done(function(){
+			$.when(Imdb.reqLists()).done(function(){
 				progress.append(' .');
 				$.when(Imdb.reqMovieLists(),Imdb.reqVotes())
 					.done(Imdb.finished)
