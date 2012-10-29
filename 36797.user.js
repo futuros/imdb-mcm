@@ -383,7 +383,6 @@ var Imdb = {
 	 * 
 	 */
 	parseMovieList: function(response){
-		$('#progress').append(' .');		
 		var list_id = this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
 			Movies.get(parseInt(response[i].const.replace('tt','')),10).addListItem(list_id, 1);
@@ -397,6 +396,7 @@ var Imdb = {
 		});
 	},
 	parseHtmlList: function(response){
+		$('#progress').append(' .');		
 		var listId = this.data.list_id;
 		var $response = $(response);
 		$response.find('.list.compact table tr').each(function(index){
@@ -483,7 +483,7 @@ var Imdb = {
 		request.error = function(r){Log.error(r.responseText);};
 		let settings = request;
 		settings.context=request;
-		Log.f('xhr')('XHR: '+request.url+' '+decodeURIComponent($.param(request.data)));
+		Log.f('xhr')('XHR: '+request.url);
 		return $.ajax(settings);
 	},
 	/*
