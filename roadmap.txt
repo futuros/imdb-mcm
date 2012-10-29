@@ -1,8 +1,3 @@
-3.0.0
-	Goals
-		- Get the script running again with the latest IMDB site update.
-	See todo.txt
-			
 3.1.0
 	Goals
 		- Configurability
@@ -13,11 +8,9 @@
 			- Check for new version
 			- Rebuild cache
 			- About
-		- Add highlights on other peoples my movies lists
 		- option to remove add to watchlist menu
 	Fixes
 		- Highlight Recommendation links on title pages
-		- Don't highlighted 'poster'/image links.
 
 3.2.0
 	Goals
