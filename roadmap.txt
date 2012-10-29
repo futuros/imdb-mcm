@@ -14,6 +14,7 @@
 			- Rebuild cache
 			- About
 		- Add highlights on other peoples my movies lists
+		- option to remove add to watchlist menu
 	Fixes
 		- Highlight Recommendation links on title pages
 		- Don't highlighted 'poster'/image links.
@@ -26,7 +27,9 @@
 	Fixes
 		- Improve design of Notifications
 		- Improve the design of the pulldown menus
+			- Fontsize etc. is based on parentnode design
 			- the open button (v) should be the close button (^)
+			- Show pulldown arrow only on :hover over links
 		- Vote labels with rounded corners
 		- Nicer labels on imdb links
 		- Improve header on title page

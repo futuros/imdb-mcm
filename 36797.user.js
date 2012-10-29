@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name          	IMDb Movie Collection Manager - by Futuros
 // @namespace    	http://userscripts.org/
-// @description   	Improvements for IMDB My Movies. Now you can REALLY use the imdb page to manage your Must-See lists and collections 
+// @description   	Improvements for IMDB My Movies. Now you can REALLY use Imdb to manage your Must-See lists and collections 
 // @copyright		2008+, Futuros
 // @license 		Creative Commons Attribution-Share Alike 3.0 Netherlands License; http://creativecommons.org/licenses/by-nc-sa/3.0/nl/
-// @version       	3.0beta
+// @version       	3.0
 // @match			http://*.imdb.com/*
 // @match			http://*.imdb.de/*
 // @exclude       	http://i.imdb.com/*
@@ -16,11 +16,19 @@
 // @downloadURL     https://github.com/futuros/imdb-mcm/raw/master/36797.user.js
 // ==/UserScript==
 
+/** @constant */
 var Script = {
 	name: 'IMDb Movie Collection Manager',
+	version: '3.0',
 };
 
-/* 
+/**
+ * @name 	IMDB Movie Collection Manager
+ * @author	Futuros
+ * @version	3.0
+ */
+
+/*
 	Go to: http://userscripts.org/scripts/show/36797
 	   or: http://github.com/futuros/imdb-mcm
 	
@@ -32,7 +40,7 @@ var Script = {
 
 */
 
-// Configuration
+/** @constant */
 var Config = {
 	header: {				// Configuration options for the title name on the movie title page
 		highlight: {
@@ -52,6 +60,7 @@ var Config = {
 			confirmation: true,	// ask for confirmation when deleting a list with a link; NB: only used when goto:false
 	},	},
 	links: {				// Configuration options for the links
+		highlightOnLists: true, // hightlight links on lists
 		pulldown: true, 		// append a pulldown menu with lists to every movie link
 		highlight: {
 			show: true,			// Highlight the title name if in menu or voted for
@@ -82,18 +91,17 @@ var Config = {
 			xhr: true,		// show each xhr verbosely
 			stats: true,	// show statistics about the amount of lists found, links parsed etc.
 		},
-		notifications: true,	// show debug notifications 
-		test: (false && (document.location.href.indexOf('tt0278090')!=-1)), //automatically go to test mode on Test movie page,			// use test data instead of real data. 
+		notifications: true,	// show debug notifications. Other notifications will always appear
 }	};
 
-// Images
+/** @private */
 var Images = {
 	checked: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAGrSURBVDjLvZPZLkNhFIV75zjvYm7VGFNCqoZUJ+roKUUpjRuqp61Wq0NKDMelGGqOxBSUIBKXWtWGZxAvobr8lWjChRgSF//dv9be+9trCwAI/vIE/26gXmviW5bqnb8yUK028qZjPfoPWEj4Ku5HBspgAz941IXZeze8N1bottSo8BTZviVWrEh546EO03EXpuJOdG63otJbjBKHkEp/Ml6yNYYzpuezWL4s5VMtT8acCMQcb5XL3eJE8VgBlR7BeMGW9Z4yT9y1CeyucuhdTGDxfftaBO7G4L+zg91UocxVmCiy51NpiP3n2treUPujL8xhOjYOzZYsQWANyRYlU4Y9Br6oHd5bDh0bCpSOixJiWx71YY09J5pM/WEbzFcDmHvwwBu2wnikg+lEj4mwBe5bC5h1OUqcwpdC60dxegRmR06TyjCF9G9z+qM2uCJmuMJmaNZaUrCSIi6X+jJIBBYtW5Cge7cd7sgoHDfDaAvKQGAlRZYc6ltJlMxX03UzlaRlBdQrzSCwksLRbOpHUSb7pcsnxCCwngvM2Rm/ugUCi84fycr4l2t8Bb6iqTxSCgNIAAAAAElFTkSuQmCC',
 	unchecked: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAIhSURBVDjLlZPrThNRFIWJicmJz6BWiYbIkYDEG0JbBiitDQgm0PuFXqSAtKXtpE2hNuoPTXwSnwtExd6w0pl2OtPlrphKLSXhx07OZM769qy19wwAGLhM1ddC184+d18QMzoq3lfsD3LZ7Y3XbE5DL6Atzuyilc5Ciyd7IHVfgNcDYTQ2tvDr5crn6uLSvX+Av2Lk36FFpSVENDe3OxDZu8apO5rROJDLo30+Nlvj5RnTlVNAKs1aCVFr7b4BPn6Cls21AWgEQlz2+Dl1h7IdA+i97A/geP65WhbmrnZZ0GIJpr6OqZqYAd5/gJpKox4Mg7pD2YoC2b0/54rJQuJZdm6Izcgma4TW1WZ0h+y8BfbyJMwBmSxkjw+VObNanp5h/adwGhaTXF4NWbLj9gEONyCmUZmd10pGgf1/vwcgOT3tUQE0DdicwIod2EmSbwsKE1P8QoDkcHPJ5YESjgBJkYQpIEZ2KEB51Y6y3ojvY+P8XEDN7uKS0w0ltA7QGCWHCxSWWpwyaCeLy0BkA7UXyyg8fIzDoWHeBaDN4tQdSvAVdU1Aok+nsNTipIEVnkywo/FHatVkBoIhnFisOBoZxcGtQd4B0GYJNZsDSiAEadUBCkstPtN3Avs2Msa+Dt9XfxoFSNYF/Bh9gP0bOqHLAm2WUF1YQskwrVFYPWkf3h1iXwbvqGfFPSGW9Eah8HSS9fuZDnS32f71m8KFY7xs/QZyu6TH2+2+FAAAAABJRU5ErkJggg==',
 	loading: 'data:image/gif;base64,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%3D%3D',
 };
 
-// Add Jquery
+/** @private Add Jquery */
 this.$ = this.jQuery = jQuery.noConflict(true);
 
 // Add styles
@@ -103,8 +111,10 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	.imcm_catlist { width: auto; color: black; text-align:left;} \
 	.imcm_hide {display:none; height: 0px;} \
 	.imcm_failed {border-color: red!important; background-color:pink!important;} \
-	.imcm_notification {background-color:#BCC4F5;padding:4px 10px 6px; font-color:black;font-size:0.8em; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);} \
-	.error {background-color: #F5A4AC; font-color: #DE1024; font-weight:bolder;} \
+	.imcm_notification {background-color:#BCC4F5; color:black; font-family: verdana,sans-serif; display:none; z-index:99999; position:fixed; top:0px; left: 5%; height: auto; width: 90%; border-radius: 0 0 5px 5px;border-right:2px solid #eee; border-left: 2px solid #eee; border-bottom:2px solid #eee; transparency:80%; box-shadow:0 2px 4px rgba(0,0,0,0.1);} \
+	.imcm_notification h1 {font-size:.9em;padding:3px 10px 3px 10px;margin:0 auto;color:white;background-color:rgba(0,0,0,0.5);} \
+	.imcm_notification p {font-size:0.8em;padding:4px 10px 6px;} \
+	.error {background-color: #F5A4AC; color: #DE1024; font-weight:bolder;} \
 	a.label_node .imcm_label {padding: 5px; color: '+Config.links.labels.color.text+' !important;} \
 	h1.label_node .imcm_label {padding: 5px; color: '+Config.header.labels.color.text+' !important;} \
 	.imcm_vote {margin:2px; padding-left:2px; padding-right:2px;} \
@@ -114,8 +124,8 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	.imcm_4,.imcm_3,.imcm_2,.imcm_1 {background-color: '+Config.vote.low.bg+'; color: '+Config.vote.high.text+';} \
 	.imcm_pulldown_wrapper {position: relative;} \
 	.imcm_pulldown_link {position: relative;padding:0 5px 0 5px; font-size:.8em;cursor:pointer;} \
-	.imcm_pulldown {position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;} \
-	.imcm_pulldown a {position:absolute; top:2px; right:2px; font-size:12px; line-height:12px; font-weight:bolder; background-color: white;cursor:pointer;border:1px solid black; border-radius: 10px 10px 10px 10px;padding:0 3px 1px;} \
+	.imcm_pulldown {z-index: 1000;position:absolute; top:.9em; right:0px; background-color: white; border: 1px solid black;} \
+	.imcm_pulldown a { position:absolute; top:2px; right:2px; font-size:12px; line-height:12px; font-weight:bolder; background-color: white;cursor:pointer;border:1px solid black; border-radius: 10px 10px 10px 10px;padding:0 3px 1px;} \
 	.imcm_menu { min-width:130px;margin: 0; padding:0px; list-style: none;} \
 	.imcm_menu li{font-weight:bolder;background-image:url('+Images.unchecked+');padding: 2px 21px;background-repeat:no-repeat;background-position:2px center;height:16px;display:block;cursor:pointer;cursor:hand;margin:auto;} \
 	.imcm_menu li:hover{background-color:#ddd!important;} \
@@ -123,15 +133,14 @@ $('head').append('<style type="text/css">/* Inserted By Greasemonkey userscript 
 	.imcm_menu li.busy{background-color:#fff !important;color:gray;cursor:wait!important;background-image:url('+Images.loading+')!important;} \
 </style>');
 
-//Global variabels
+/** @private  */
 var activePulldown,
-	pulldowns =1000;
 	_c = console.log, _d = console.debug;
 
-/*
+/**
  * Create a menu element with all the movielists as list items.
- * @param 	movie	a MovieObj which the form field will add/remove to the items
- * @return	html	returns a html menu element or false if a menu with the id already exists.
+ * @param 	{Movie}		movie	a MovieObj which the form field will add/remove to the items
+ * @returns	{jQuery}			returns a html menu element or false if a menu with the id already exists.
  */
 function createListsMenu (movie){
 	var menu = $('<ul />', {
@@ -159,27 +168,28 @@ function createListsMenu (movie){
 	return menu;
 }
 
-/*
+/**
  * Appends labels for all the movielists the movie belongs to, to the node
  * Also add a pulldown menu with movielists if Config requires so
  *
- * @param {HtmlElement} node The node where the movielists need to be appended to
- * @param {MovieObj} movie The movie corresponding with the node
- * @return Whether or not the node got highlighted as a result of this function
- * @type boolean
+ * @param 	{jQuery}	$node	A jquery object where all the Labels need to be appended to
+ * @param	{Movie} 	movie 	The movie for which the labels should be applied
+ * @returns	{Boolean}			Whether or not the $node got highlighted as a result of this method
  */
-function appendListLinks(node, movie){
-	var isHeader = !node.is('A');
-	node.addClass('label_node movie'+movie.getId());
-	highlighted = updateListLinks(node, movie);
-	if(Config.links.pulldown && !isHeader){
+function appendListLinks ($node, movie){
+	var highlighted = updateListLinks($node, movie);
+	appendPulldown($node,movie);
+	return highlighted;
+}
+
+function appendPulldown(node, movie){
+	if(Config.links.pulldown){
 		$('<span />').addClass('imcm_pulldown_wrapper')
 		.append(
 			$('<div />', {
 				'class':'imcm_pulldown imcm_catlist',
 				mouseover: function(ev){activePulldown=null;}, 
 				mouseout: function(ev){activePulldown=this;},
-				css: {'zIndex': pulldowns--}
 			}).hide()
 			.append(createListsMenu(movie))
 			.append($('<a>x</a>').click(function(){$(this).parent().hide('slow');activePulldown=null;return false;}))
@@ -187,11 +197,8 @@ function appendListLinks(node, movie){
 			$('<a class="imcm_pulldown_link">&#9660;</a>')
 			.click(function(){var ap=$(this).parent().find('.imcm_pulldown');if(activePulldown){$(activePulldown).hide();} activePulldown=ap;ap.show('slow');return false;})
 		).insertAfter(node);
-		$(document).click(function(){$(activePulldown).hide('slow');activePulldown=null;});
 	}
-	return highlighted;
 }
-
 /*
  * Remove all labels and/or vote currently on the node. Reapply the labels and/or vote according to the new movie object
  * Add the highlight class to the node if it has movielists or votes
@@ -203,8 +210,9 @@ function appendListLinks(node, movie){
  */
 
 function updateListLinks(node,movie){
-	var isHeader = !node.is('A');
-	var CFG = isHeader ? Config.header : Config.links;
+	var CFG = (!node.is('A')) ? Config.header : Config.links;
+	//mark the node as a label_node
+	node.addClass('label_node movie'+movie.getId());
 	// Remove nodes currently added to the nodes parentnode
 	node.parent().find('.imcm_label').remove();
 	if(!movie.isActive()){
@@ -243,15 +251,15 @@ function updateListLinks(node,movie){
 	} //end: add movieList label
 	// Add a vote to the node
 	if(CFG.vote && movie.hasVote()){
-		tag = $('<span />').addClass('imcm_vote imcm_label imcm_'+movie.getVote())
-		.html(movie.getVote())
-		.insertAfter(node);
+		$('<span />').addClass('imcm_vote imcm_label imcm_'+movie.getVote())
+			.html(movie.getVote())
+			.insertAfter(node);
 	}
 	return true; // movie should be highlighted
 }
 
 /*
- * Update the status of the movie for all links refering to the specified movie.
+ * Update the status of the movie for all links referring to the specified movie.
  */
 function updateStatus(movie){
 	Log.f('init')('Updating all links and headers for movie: '+movie.getId());
@@ -259,38 +267,34 @@ function updateStatus(movie){
 	$('.movie'+movie.getId()+'.imcm_menu').find('li').each(function(){
 		$(this).toggleClass('checked', movie.inList($(this).attr('catid')));
 	});
-}	
+}
 
-/*
+/**
  * Imdb API object
  * This object is used for interaction with the Imdb website through AJAX
  * Every getMethodName should call the xhr function which sends the response to parseMethodName.
  * 		getMethodName: function getMethodName(){} // only use this format.
  * actionMethodName does not have a callback
+ * @class Provides interaction with the Imdb website
+ * @lends Imdb
  */
 var Imdb = {
-	prefix: 'http://www.imdb.com/',
+	/** @constant @private */
 	_const: 'tt0278090', // random valid const.
+	/** @constant @private */
+	prefix: 'http://www.imdb.com/',
+	/** @private */
 	authorId:null,
+	/** @private */
 	watchlistId:null,
+	/** @private */
 	check:null,
+	/** @private */
 	onInit: false,
 	
-	/*
-	 * Temporary function to test the Imdb api in isolation
-	 */
-	test: function(commands){
-		var test = commands || prompt('What do we need to test?','Votes,Lists');
-		if(!test)return;
-		Movies.clear();
-		tests = test.split(',');
-		for(var i=0,j=tests.length;i<j;i++){
-			func= Imdb['req'+tests[i]];
-			if(typeof func == 'function')func();
-		}
-	},
-	/*
+	/**
 	 * Requests the votes in a csv format
+	 * @returns {Promise} a jQuery promise object for the xhr call
 	 */
 	reqVotes: function(){
 		return Imdb.xhr({
@@ -299,13 +303,13 @@ var Imdb = {
 			dataFilter: Imdb.csvFilter,
 		});
 	},
-	/*
+	/**
 	 * Parse the response from the reqVotes call
 	 * @param {Object} response The response object from the (succesfull) Ajax call
 	 */
 	parseVotes: function(response){
 		for(var i=0,j=response.length;i<j;i++){
-			Movies.get(response[i].const.replace('tt','')).setVote(response[i].you_rated);
+			Movies.get(parseInt(response[i].const.replace('tt',''),10)).setVote(response[i].you_rated);
 		}
 		Log.f('stats')(response.length+' votes found');
 		Movies.save();
@@ -381,7 +385,7 @@ var Imdb = {
 	parseMovieList: function(response){
 		var list_id = this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
-			Movies.get(response[i].const.replace('tt','')).addListItem(list_id, 1);
+			Movies.get(parseInt(response[i].const.replace('tt','')),10).addListItem(list_id, 1);
 		}
 	},
 	reqHtmlList: function(listId,start){
@@ -400,7 +404,7 @@ var Imdb = {
 			var rate = $row.find('.rating-list');
 			if(rate && rate.attr('id')){
 				var tt=rate.attr('id').split('|')[0];
-				Movies.get(tt.replace('tt','')).addListItem(listId,$row.attr('data-item-id'));
+				Movies.get(parseInt(tt.replace('tt',''),10)).addListItem(listId,$row.attr('data-item-id'));
 			}
 		});
 	},
@@ -467,8 +471,6 @@ var Imdb = {
 	xhr: function(request){
 		request.type = request.type||'GET';
 		request.url = Imdb.prefix+request.url;
-		if(Config.debug.test && !confirm('ajax: '+request.type+' data to: '+request.url))return;
-
 		if(!request.callback){ // if callback is not supplied 
 			var callbackName = Imdb.findProp(function(p){return Imdb[p]===Imdb.xhr.caller;}).substr(3); // create a callback fuction based on the property name of the function calling imdb.xhr 
 			request.callback = Imdb['parse'+callbackName];
@@ -480,7 +482,7 @@ var Imdb = {
 		request.error = function(r){Log.error(r.responseText);};
 		let settings = request;
 		settings.context=request;
-		Log.f('xhr')('XHR: '+request.url+' '+request.data+' >'+request.callback);
+		Log.f('xhr')('XHR: '+request.url+' '+request.data);
 		return $.ajax(settings);
 	},
 	/*
@@ -518,8 +520,9 @@ var Imdb = {
 			Log.f('stats')(Movies.length()+' movies found in movielists (including vote history)');
 			if(onInit){ // if the rebuild script was started on page init
 				Page.initCaches(); // reinitialize the page
-			} else if(!Config.debug.test){
-				window.setTimeout(window.location.reload,1000); //reload the page
+			} else {
+				Notification.write('<a href="javascript:document.reload()">Reload the page</a>', 0, true);
+				window.setTimeout(window.location.reload,3000); //reload the page
 			}
 		} else {
 			Log.error('Something whent wrong while getting movies information from Imdb.',this);
@@ -577,51 +580,89 @@ var Imdb = {
     }
 };
 
-/*
+/**
  * Create a notification object
+ * @class Notification helper
  */
 var Notification = {
-	_timer:null,	
+	/** @private */
+	_timer: null,
+	/** @private _node */
+	_node: null,
+	/**
+	 * @constructs
+	 * @private
+	 */
 	_init: function(){
-		this._node = $('<div class="imcm_notification"></div>')
+		this._node = $('<div class="imcm_notification"><h1>'+Script.name+'</h1><p></p></div>')
 			.appendTo('body')
 			.click(this._hide);
 	},
+	/** 
+	 * @private 
+	 * @param {String} text Text message
+	 * @param {Int} maxtime Time in ms the notification window should be shown
+	 * @param {Boolean} append If true, the message gets appended to the notification window. If false the current message gets overriden.
+	 */
 	_write:function(text, maxtime, append){
 		if(this._timer)clearTimeout(this._timer);
 		if(append)
-			this._node.append('<br />'+text);
+			this._node.find('p').append('<br />'+text);
 		else
-			this._node.html(text);
+			this._node.find('p').html(text);
 		this._show();
 		if(maxtime>0){
 			this._timer=setTimeout(this._hide,maxtime);
 		}
 	},
+	/**
+	 * Show a text message in the notification window
+	 * Is only shown if Config.debug.notifications is set to true
+	 * @param {String} text Text message
+	 * @param {Int} maxtime Time in ms the notification window should be shown
+	 * @param {Boolean} append If true, the message gets appended to the notification window. If false the current message gets overriden.
+	 */
 	write:function(text, maxtime, append){
 		if(!this._node)this._init();
 		this._node.removeClass('error');
 		this._write(text,maxtime,append);
 	},
+	/**
+	 * Show a debug message in the notification window
+	 * Is only shown if Config.debug.notifications is set to true
+	 * @param {String} text Debug message
+	 * @param {Int} maxtime Time in ms the notification window should be shown
+	 */
 	debug: function(text, maxtime){
-		if(Config.debug.popup)this.write(text, maxtime);
+		if(Config.debug.notifications)this.write(text, maxtime);
 	},
+	/**
+	 * Show an error message in the notification window
+	 * @param {String} text Error message
+	 */
 	error: function(text){
 		if(!this._node)this._init();
 		this._node.addClass('error');
-		this._write('<h3>ERROR:</h3><p>'+text+'</p>');
+		this._write('<h4>ERROR:</h4>'+text);
 	},
+	/** @private */
 	_show: function(){
 		this._node.show('slow');
 	},
-	
+	/** @private */
 	_hide: function(){
 		Notification._node.hide('slow');
 	}
 };
-
+/**
+ * An array that handles storage and retrieval
+ * @class A list that handles storage
+ * @lends StoredList
+ */
 var StoredList = {
+	/** @private */
 	_items: [],
+	/** @private */
 	_name: null,
 	save: function(){
 		return Storage.set(this._name,this._items,true);
@@ -633,8 +674,8 @@ var StoredList = {
 	clear: function(){
 		this._items = [];
 	},
-    /*
-     * @return movieObj or null
+    /**
+     * @returns {Movie} Returns a Movie object or null
      */
     find: function(id){
         for(var i=0,j=this._items.length;i<j;i++){
@@ -644,147 +685,218 @@ var StoredList = {
         }
         return null;
     },
-    /*
-     * @return {Int} Number of items in the list
+    /**
+     * @returns {Int} Number of items in the list
      */
     length: function(){
         return this._items.length;
     },
 };
+/**
+ * This object acts as a movie array
+ * @class A list with all movies
+ * @static
+ * @augments StoredList
+ */
+var Movies = $.extend(true, {}, StoredList, 
+	/** @lends Movies */
+	{
+		/** @private */
+		_class: Movie,
+		/** @private */
+		_name: 'Movies',
+	    /**
+		 * @param {String} id
+		 * @returns {Movie} Always returns a {Movie} if none exists creates a new one
+		 */
+	    get: function(id){
+	        var obj = this.find(id) || this._push({id: id});
+	        return new this._class(obj);
+	    },
+	    getByAddress: function(address){
+	    	var id = this.getIdByAddress(address);
+	    	return (id) ? this.get(id) : false; 
+	    },
+		getIdByAddress: function(address) {
+			//var id = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
+			var id = address.match(/\/title\/tt(\d{6,7})\/$/i);
+			return (id)?parseInt(id[1],10):false;
+		},
+	
+	    /**
+	     * Pushes an object to the _items and returns it.
+	     * @param {object} object 
+	     * @returns {object}
+	     * @private
+	     */
+	    _push: function(object){
+	        this._items.push(object);
+	        return object;
+	    },
+	}
+);
 
-var Movies = $.extend(true, {}, StoredList, {
-	_class: Movie,
-	_name: 'Movies',
-    /*
-	 * Always returns a MovieObj if none exists creates a new one
-	 * @return movieObj;
-	 */
-    get: function(id){
-        var obj = this.find(id) || this._create({id: id});
-        return new this._class(obj);
-    },
-    getByAddress: function(address){
-    	var id = this.getIdByAddress(address);
-    	return (id) ? this.get(id) : false; 
-    },
-	getIdByAddress: function(address) {
-		var id = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
-		return (id)?id[1]:false;
-	},
+/**
+ * @static
+ * @class All the movielists
+ * @augments StoredList
+ */
+var Lists = $.extend(true, {}, StoredList, 
+	/** @lends Lists */
+	{
+		/** 
+		 * @private
+		 * @constant
+		 */
+		_name: 'Lists',
+		set: function(items){
+			this._items = items;
+			this.save();
+		},
+		getByName: function(name){
+	        for(var i=0,j=this._items.length;i<j;i++){
+	            if(this._items[i].name==name){
+	                return this._items[i];
+	            }
+	        }
+	        return null;
+		},
+	}
+);
 
-    /*
-     * @return movieObj
-     */
-    _create: function(object){
-        this._items.push(object);
-        return object;
-    },
-});
-
-var Lists = $.extend(true, {}, StoredList, {
-	_name: 'Lists',
-	set: function(items){
-		this._items = items;
-		this.save();
-	},
-});
-
+/**
+ * Creates a new Movie object
+ * @class Represents a Movie
+ * @param 	{Object}	object
+ * @returns {Movie}
+ * @constructs
+ */
 function Movie(object){
     object.lists = object.lists || [];
-	this._object = object;
+	/** @private */
+    this._object = object;
 }
-$.extend(Movie.prototype, {
-	getId: function(){
-		return this._object.id;
-	},
-	setVote: function(vote){
-		this._object.vote = vote;
-        return this;
-    },
-    getVote: function(){
-    	return this._object.vote;
-    },
-    hasVote: function(){
-    	return this._object.vote && true;
-    },
-    equals: function(object){
-    	return (!object)?false:(this.getId() == object.getId());
-	},
-    addListItem: function(listId, listItemId){
-        this._object.lists.push([listId,listItemId]);
-        return this;
-    },
-    removeListItem: function(listId){
-		for(var i=0,j=this._object.lists.length;i<j;i++){
-			if(this._object.lists[i][0]==listId){
-				this._object.lists.splice(i,1);
-				return this;
+$.extend(Movie.prototype, 
+	/** @lends Movie.prototype */
+	{
+		getId: function(){
+			return this._object.id;
+		},
+		setVote: function(vote){
+			this._object.vote = vote;
+	        return this;
+	    },
+	    getVote: function(){
+	    	return this._object.vote;
+	    },
+	    hasVote: function(){
+	    	return this._object.vote && true;
+	    },
+	    equals: function(object){
+	    	return (!object)?false:(this.getId() == object.getId());
+		},
+	    addListItem: function(listId, listItemId){
+	        this._object.lists.push([listId,listItemId]);
+	        return this;
+	    },
+	    removeListItem: function(listId){
+			for(var i=0,j=this._object.lists.length;i<j;i++){
+				if(this._object.lists[i][0]==listId){
+					this._object.lists.splice(i,1);
+					return this;
+				}
 			}
-		}
-		return this;
-    },
-	getListItem: function(listId){
-		for(var i=0,j=this._object.lists.length;i<j;i++){
-			if(this._object.lists[i][0]==listId){
-				return this._object.lists[i];
+			return this;
+	    },
+		getListItem: function(listId){
+			for(var i=0,j=this._object.lists.length;i<j;i++){
+				if(this._object.lists[i][0]==listId){
+					return this._object.lists[i];
+				}
 			}
-		}
-		return false;
-	},
-	getListItemId: function(listId){
-		return (listItem = this.getListItem(listId)) ? listItem[1] : false;
-	},
-    inList: function(listId){
-    	return this.getListItem(listId) && true;
-    },
-    listLength: function(){
-    	return this._object.lists.length;
-    },
-    isActive: function(){
-    	return this.listLength()>0 || this.hasVote();
-    },
-    /*
-     * @return {Array} An array of list item object with {listId, listName, listItemId}
-     */
-    getListItems: function(){
-        var items = [];
-		for(var i=0,j=this._object.lists.length;i<j;i++){
-			var item = this._object.lists[i];
-			items.push({id: item[0], itemId: item[1], name: Lists.find(item[0]).name});
-		}
-    	items.sort(function(a,b){return (a.name<b.name)?-1:(a.name>b.name)?1:0;});
-    	return items;
-        return this._object.lists || [];
-    },
-});
+			return false;
+		},
+		getListItemId: function(listId){
+			return (listItem = this.getListItem(listId)) ? listItem[1] : false;
+		},
+		/**
+		 * Check if the movie is in a specific list
+		 * @param {String} listId The id of the movie list
+		 * @returns {Boolean} Whether or not the movie is in the specified list
+		 */
+	    inList: function(listId){
+	    	return this.getListItem(listId) && true;
+	    },
+	    /**
+	     * @returns {Int} Number of lists the movie is added to
+	     */
+	    listLength: function(){
+	    	return this._object.lists.length;
+	    },
+	    /**
+	     * @returns {Boolean} Active means that it is in either a list or has been voted for
+	     */
+	    isActive: function(){
+	    	return this.listLength()>0 || this.hasVote();
+	    },
+	    /**
+	     * @returns {Array} An array of list item object with {listId, listName, listItemId}
+	     */
+	    getListItems: function(){
+	        var items = [];
+			for(var i=0,j=this._object.lists.length;i<j;i++){
+				var item = this._object.lists[i];
+				items.push({id: item[0], itemId: item[1], name: Lists.find(item[0]).name});
+			}
+	    	items.sort(function(a,b){return (a.name<b.name)?-1:(a.name>b.name)?1:0;});
+	    	return items;
+	        return this._object.lists || [];
+	    },
+	}
+);
 
-/*
+/**
  * Object to handle information about the page if it is a title page
  * There are different types of pages
  * title:		Movie title page /title/tt* || /Title?
  * mymovies:	Movie list page /mymovies/list*
  * imdb:		Imdb Page with movie links
  * external:	External page; not implemented yet
+ * @static
+ * @property	{Object}	TYPE		Contains the different types a page can be
  */
 var Page = {
-	TYPE: {title: 0, mymovies: 1, imdb: 2, external: 3},
+	/** @constant */
+	TYPE: {title: 'title', mymovies: 'mymovies', list: 'list', imdb: 'imdb', external: 'external'},
+	/** @private */
 	startTime: 0,
+	
 	init: function(){
 		this.startTime = $.now();
 		if(window.location != window.parent.location)return false; //page not in iframe
 		Log.f('init')('Initialize script: '+document.location.href);
 		this.initType();
 	},
-	
+	/*
+	 * Determines the type of page based on the document.location
+	 * There are 4 different types:
+	 * 		External: Not in www.imdb.com/ not used at the moment.
+	 * 		Title page: /title/tt0011222/*
+	 * 		List page: /list/*
+	 * 		MyMovies page: /user/*
+	 * 		IMDB page: http://www.imdb.com/ but not one of the above 
+	 */
 	initType: function(){
 		this.loc = document.location.href;
 		if(this.loc.search(/^http(s)?:\/\/.*\.imdb\.(com|de)\//)==-1){
 			this.type = this.TYPE.external;
-		} else	if(this.loc.search(/\/user/)!=-1){
+			Notification.error('You have activated this userscript on a page outside of imdb.com. This is not yet supported.');
+			return;
+		} else	if(this.loc.search(/\/user/i)!=-1){
 			this.type = this.TYPE.mymovies;
-		} else	if(this.loc.search(/\/list/)!=-1){
-			this.type = this.TYPE.mymovies;
-		} else if(this.loc.search(/(\/title\/tt\d+)|(\/Title\?\d+)/)!=-1){
+		} else	if(this.loc.search(/\/list/i)!=-1){
+			this.type = this.TYPE.list;
+		} else if(this.loc.search(/\/title\/tt\d+/i)!=-1){
 			this.type = this.TYPE.title;
 		} else {
 			this.type = this.TYPE.imdb;
@@ -792,9 +904,9 @@ var Page = {
 		Log.f('init')('Page type: '+this.type);
 		this.initUser();
 	},
-	/*
+	/**
 	 * Get the Username
-	 * @TODO: Rewrite with jquery
+	 * @TODO Rewrite with jquery
 	 */
 	initUser: function(){
 		Log.f('init')('Initialize username');
@@ -821,9 +933,9 @@ var Page = {
 	},
 	initMenus: function(){
 		Log.f('init')('Init menus');
-		//if(this.isType(this.TYPE.mymovies)){ //mymovies page
+		//if(!this.isType(this.TYPE.external)){ //not an external page
 			
-			 //@TODO: Add button/menu for cache reload 
+			 /** @TODO Add button/menu for cache reload */ 
 			 //We should reload the cache on every page view.
 			 //We can add a button in the top corner. And if we push it the cache gets reloaded.
 			 //
@@ -839,23 +951,24 @@ var Page = {
 			Log.f('stats')('Lists loaded from cache: '+Lists.length());
 			if(Movies.length()!=0 && Lists.length()!=0){
 				Log.f('timing')('Caches initialized in: '+(($.now())-this.startTime)+' ms.');
-				return this.initLinks();
+				return this.start();
 			}
 		}
 		Imdb.rebuild(true);
 		return false;
 	},
 	initLinks: function(){
-		this.start();
 		Log.f('init')('init links on page');
 		linkCount=0;
 		activeLinks=0;
 		var mov = Movies.getIdByAddress(this.loc);
-		$('A[href^="/title/tt"]').each(function(){
-			var id,movie;
-			if((id = Movies.getIdByAddress(this.href)) && id!=mov){
+		$('A[href^="/title/tt"]:not(:has(img))').each(function(){
+			var id,movie,
+				$this = $(this);			
+			if((id = Movies.getIdByAddress($this.attr('href'))) && id!=mov){
+				linkCount++;			
 				movie = Movies.get(id);
-				if(appendListLinks($(this), movie)){activeLinks++;}
+				if(appendListLinks($this, movie)){activeLinks++;}
 				linkCount++;			
 			}
 		});
@@ -863,26 +976,25 @@ var Page = {
 			Log.f('stats')(linkCount+' imdb links found');
 			Log.f('stats')(activeLinks+' links highlighted');
 		}
-		if(Config.pulldown){
-			document.body.addEventListener('click', function(){if(activePulldown!=null){$(activePulldown).addClass('imcm_hide');}}, true);
+		if(Config.links.pulldown){
+			$('body').click(function(){$(activePulldown).hide('fast');activePulldown=null;});
 		}
 		Log.f('timing')('Links initialized in: '+($.now()-this.startTime)+' ms.');
 	},
 	start: function(){
 		Log.f('init')('start switcher');
 		switch(this.type){
-			case this.TYPE.title:
-				this.startTitle();
-			break;
 			case this.TYPE.mymovies:
 				//this.startMymovies();
-			break;
-			case this.TYPE.imdb:
-				//this.startOther();
-			break;
+				break;
+			case this.TYPE.lists:
+				if(!CONFIG.links.highlightOnLists)break;
+			case this.TYPE.title:
+				this.startTitle();
 			case this.TYPE.external:
 				//this.startExternal();
-			break;
+			default:
+				this.initLinks();
 		}
 	},
 	startTitle: function(){
@@ -907,8 +1019,25 @@ var Page = {
 				} // else {do nothing, just a hover over the votes}
 			});
 			// --end of vote code
-			
-			appendListLinks($('h1').first(), movie);
+			// Listen for wlb menu changes
+			$('#overview-bottom div.wlb_classic_wrapper div.wlb_alert:not(.wlb_failed)').on('DOMAttrModified', function(){
+				var $this = $(this);
+				if($this.css('display')!='block')return;
+				var list = Lists.getByName($this.find('.wlb_list_name').first().html().replace('MyMovies: ',''));
+				if(!list){Notification.error('Failed to handle list modification. The cache is no longer in sync with the real IMDB data. Add movies to lists via the script menu\'s');return;}
+				if($this.hasClass('wlb_add_ok')){
+					/** @TODO listItemId should be obtained on wlb change */
+					var listItemId = 1;
+					Notification.error('You should use the list menu provided by the script to add movies. Items add via native Imdb UI can\'t be removed until the cache is rebuild.');
+					movie.addListItem(list.id, listItemId);
+				} else if($this.hasClass('wlb_remove_ok')){
+					movie.removeListItem(list.id);
+				}
+				Movies.save();
+				updateStatus(movie);
+			});
+			//End of Wlb listener
+			updateListLinks($('h1').first(), movie);
 			Log.f('init')('Adding list menu to the title page');
 
 			$('<div />').addClass('imcm_catlist aux-content-widget-2')
@@ -916,7 +1045,6 @@ var Page = {
 				.prependTo('#maindetails_sidebar_bottom');
 
 			Log.f('timing')('Title page scripts finished in: '+($.now()-this.startTime)+' ms.')
-			if(Config.debug.test)Imdb.test();
 		}
 	},
 	isType: function(type){
@@ -926,10 +1054,13 @@ var Page = {
 		return this.movie = this.movie || Movies.getByAddress(this.loc);
 	}
 };
-
+/**
+ * Object that handles the Storage in localStorage
+ * @static
+ */
 var Storage = {
 		prefix: function(key){
-			return [Script.name, Page.user, key].join('***');
+			return [Script.name, Script.version, Page.user, key].join('***');
 		},
 		
 		remove:function(key) {
@@ -958,6 +1089,10 @@ var Storage = {
 			localStorage.setItem(this.prefix(key), strVal);
 		},
 };
+/**
+ * Logging helper object
+ * @static
+ */
 var Log = {
 	array: [],
 	show: function(singleLine){
@@ -972,7 +1107,7 @@ var Log = {
 		return msg;
 	},
 	error: console.error,
-	/* 
+	/**
 	 * Returns a logging function based on the Config settings.
 	 * @returns {Function} logging function, either Log.add or console.info
 	 */
