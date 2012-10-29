@@ -84,7 +84,7 @@ var Config = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		all: false,		// disables all debug.types if set to false 
+		all: true,		// disables all debug.types if set to false 
 		types: {
 			init: true,		// show script initialization statuses
 			timing: true,   // show timings of the script
@@ -383,6 +383,7 @@ var Imdb = {
 	 * 
 	 */
 	parseMovieList: function(response){
+		$('#progress').append(' .');		
 		var list_id = this.data.list_id;
 		for(var i=0,j=response.length;i<j;i++){
 			Movies.get(parseInt(response[i].const.replace('tt','')),10).addListItem(list_id, 1);
@@ -492,15 +493,18 @@ var Imdb = {
 	rebuild: function(onInit){
 		if(onInit){ // Automatic request on script init
 			Imdb.onInit=true;
-			Log.f('init')('Building cache on first script run. This could take a while.');
-			Notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
+			Log.f('init')('Building cache on first script run.');
+			Notification.write('Because it\'s the first time this script is run the movie list needs to be updated. This could take a while<span id="progress">.</span>');
 		} else { // Manuel request
 			Log.f()('Rebuilding cache - manual request');
-			Notification.write('Updating the movie list.');
+			Notification.write('Updating the movie list. This could take a while<span id="progress">.</span>');
 		}
 		Movies.clear(); // clear the current cache.
+		var progress = $('#progress');
 		$.when(Imdb.reqAuthorId(),Imdb.reqSecurityCheck()).done(function(){
+			progress.append(' .');
 			$.when(Imdb.reqHLists()).done(function(){
+				progress.append(' .');
 				$.when(Imdb.reqMovieLists(),Imdb.reqVotes())
 					.done(Imdb.finished)
 					.fail(Imdb.failed);
