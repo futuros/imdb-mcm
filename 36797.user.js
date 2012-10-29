@@ -665,7 +665,7 @@ var Movies = $.extend(true, {}, StoredList, {
     },
     getByAddress: function(address){
     	var id = this.getIdByAddress(address);
-    	return (id) ? this.get(id[1]) : false; 
+    	return (id) ? this.get(id) : false; 
     },
 	getIdByAddress: function(address) {
 		var id = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
