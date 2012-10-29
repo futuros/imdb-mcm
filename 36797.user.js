@@ -84,7 +84,7 @@ var Config = {
 			low: {text: 'white', bg: 'red'},
 	},
 	debug:{
-		all: true,		// disables all debug.types if set to false 
+		all: false,		// disables all debug.types if set to false 
 		types: {
 			init: true,		// show script initialization statuses
 			timing: true,   // show timings of the script
