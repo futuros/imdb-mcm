@@ -18,7 +18,7 @@
 	Features
 		- Change colors, etc. via config script
 	Fixes
-		- Improve design of Notifications
+		- First run Notifications should show progress 
 		- Improve the design of the pulldown menus
 			- Fontsize etc. is based on parentnode design
 			- the open button (v) should be the close button (^)

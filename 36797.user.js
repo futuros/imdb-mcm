@@ -482,7 +482,7 @@ var Imdb = {
 		request.error = function(r){Log.error(r.responseText);};
 		let settings = request;
 		settings.context=request;
-		Log.f('xhr')('XHR: '+request.url+' '+request.data);
+		Log.f('xhr')('XHR: '+request.url+' '+decodeURIComponent($.param(request.data)));
 		return $.ajax(settings);
 	},
 	/*
@@ -492,7 +492,7 @@ var Imdb = {
 	rebuild: function(onInit){
 		if(onInit){ // Automatic request on script init
 			Imdb.onInit=true;
-			Log.f('init')('Building cache on first script run');
+			Log.f('init')('Building cache on first script run. This could take a while.');
 			Notification.write('Because it\'s the first time this script is run the movie list needs to be updated.');
 		} else { // Manuel request
 			Log.f()('Rebuilding cache - manual request');
@@ -856,14 +856,9 @@ $.extend(Movie.prototype,
 );
 
 /**
- * Object to handle information about the page if it is a title page
- * There are different types of pages
- * title:		Movie title page /title/tt* || /Title?
- * mymovies:	Movie list page /mymovies/list*
- * imdb:		Imdb Page with movie links
- * external:	External page; not implemented yet
+ * Object handles information about the current page and is responsible for script initialization
  * @static
- * @property	{Object}	TYPE		Contains the different types a page can be
+ * @property {Object} TYPE	Contains the different types a page can be
  */
 var Page = {
 	/** @constant */
@@ -877,14 +872,8 @@ var Page = {
 		Log.f('init')('Initialize script: '+document.location.href);
 		this.initType();
 	},
-	/*
+	/**
 	 * Determines the type of page based on the document.location
-	 * There are 4 different types:
-	 * 		External: Not in www.imdb.com/ not used at the moment.
-	 * 		Title page: /title/tt0011222/*
-	 * 		List page: /list/*
-	 * 		MyMovies page: /user/*
-	 * 		IMDB page: http://www.imdb.com/ but not one of the above 
 	 */
 	initType: function(){
 		this.loc = document.location.href;
@@ -933,13 +922,15 @@ var Page = {
 	},
 	initMenus: function(){
 		Log.f('init')('Init menus');
-		//if(!this.isType(this.TYPE.external)){ //not an external page
-			
-			 /** @TODO Add button/menu for cache reload */ 
-			 //We should reload the cache on every page view.
-			 //We can add a button in the top corner. And if we push it the cache gets reloaded.
-			 //
-		//}
+		if(!this.isType(this.TYPE.external)){ //not an external page
+			$('<li />').addClass('js_nav_item').append('<a class="navbarSprite" href="">GM: MCM</a>')
+				.append($('<ul class="sub_nav"></ul>')
+					.append($('<li><a href="">Configuration</a></li>').click(function(){Configuration.open();return false;}))
+					.append($('<li><a href="">Rebuild cache</a></li>').click(function(){Imdb.rebuild();return false;}))
+					.append($('<li><a href="">About</a></li>').click(function(){if(confirm('Do you want to visit our Github page: http://github.com/futuros/imdb-mcm/ ?')){document.location.href='http://github.com/futuros/imdb-mcm/';}}))
+				)
+				.appendTo('#consumer_main_nav');
+		}
 		this.initCaches();
 	},
 	initCaches: function(){
@@ -1114,6 +1105,11 @@ var Log = {
 	f: function(type){
 		return (Config.debug.all && Config.debug.types[type]) ? console.info: Log.add;
 	}
+};
+var Configuration = {
+	open: function(){
+		alert('The configurator is not yet implemented');
+	}	
 };
 
 window.imdbmcm = {
