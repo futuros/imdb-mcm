@@ -168,23 +168,64 @@ function createListsMenu (movie){
 	return menu;
 }
 
-/**
- * Appends labels for all the movielists the movie belongs to, to the node
- * Also add a pulldown menu with movielists if Config requires so
- *
- * @param 	{jQuery}	$node	A jquery object where all the Labels need to be appended to
- * @param	{Movie} 	movie 	The movie for which the labels should be applied
- * @returns	{Boolean}			Whether or not the $node got highlighted as a result of this method
- */
-function appendListLinks ($node, movie){
-	var highlighted = updateListLinks($node, movie);
-	appendPulldown($node,movie);
-	return highlighted;
+function getNodeConfig($node){
+	return (!$node.is('A')) ? Config.header : Config.links;
+}
+function initMovieNode($node,movie){
+	var config = getNodeConfig($node);
+	$('<span />') // Create labels container
+		.addClass('imcm_labels_node movie'+movie.getId())
+		.append(createLabels(movie,config)) // append Labels
+		.insertAfter($node),
+	$('<span />') // Create vote container
+		.addClass('imcm_vote_node movie'+movie.getId())
+		.append(createVoteElement(movie,config)) // append Vote
+		.insertBefore($node);
+	if(config.pulldown){$node.after(createPulldown(movie));} // append pulldown
+	if(movie.isActive()){$node.addClass('imcm_highlight');}
+	$node.addClass('label_node movie'+movie.getId());
+}
+function createVoteElement(movie,config){
+	if(config.vote && movie.hasVote()){
+		return $('<span />').addClass('imcm_vote imcm_label imcm_'+movie.getVote())
+			.html(movie.getVote())
+	}
+}
+function createLabels(movie,config){
+	if(config.labels.show && movie.listLength()>0){ // show the movieList labels
+		var elements = [],
+			listItems = movie.getListItems();
+		for(var i=0, j=listItems.length;i<j;i++){
+			var list = listItems[i];
+			var settings = {
+					'class':'imcm_label', 
+					html: list.name,
+					href: '#'+list.id
+				};
+			if(config.labels.redirect){ // onclick redirect to movielist
+				settings.title = 'Go to the movielist: '+list.name;
+				settings.click = function(){
+					Notification.error('This is not yet working. Movielist id:'+list.id);	
+					//window.location='http://www.imdb.com/mymovies/list?l='+catid;
+				};
+			} else { // onclick, ask to remove from movielist
+				settings.title = 'Delete movie from list: '+list.name;
+				settings.click = function(){
+					if(!config.labels.confirmation || confirm('Delete movie from '+list.name+'?')){
+						Imdb.reqMovieAction(movie,list.id); 
+					}
+					return false;
+				};
+			}
+			elements.push($('<a />', settings));
+		}
+		return elements;
+	}
 }
 
-function appendPulldown(node, movie){
+function createPulldown(movie){
 	if(Config.links.pulldown){
-		$('<span />').addClass('imcm_pulldown_wrapper')
+		return $('<span />').addClass('imcm_pulldown_wrapper')
 		.append(
 			$('<div />', {
 				'class':'imcm_pulldown imcm_catlist',
@@ -196,79 +237,35 @@ function appendPulldown(node, movie){
 		).append(
 			$('<a class="imcm_pulldown_link">&#9660;</a>')
 			.click(function(){var ap=$(this).parent().find('.imcm_pulldown');if(activePulldown){$(activePulldown).hide();} activePulldown=ap;ap.show('slow');return false;})
-		).insertAfter(node);
+		);
 	}
 }
-/*
- * Remove all labels and/or vote currently on the node. Reapply the labels and/or vote according to the new movie object
- * Add the highlight class to the node if it has movielists or votes
- *
- * @param {HtmlElement} node The node where the movielists need to be appended to
- * @param {MovieObj} movie The movie corresponding with the node
- * @return Whether or not the node got highlighted as a result of this function
- * @type boolean
- */
 
-function updateListLinks(node,movie){
-	var CFG = (!node.is('A')) ? Config.header : Config.links;
-	//mark the node as a label_node
-	node.addClass('label_node movie'+movie.getId());
-	// Remove nodes currently added to the nodes parentnode
-	node.parent().find('.imcm_label').remove();
-	if(!movie.isActive()){
-		node.removeClass('imcm_highlight');
-		return false;
-	}
-	// if the movie contains a vote or is added to a movielist
-	node.addClass('imcm_highlight');
-	if(CFG.labels.show && movie.listLength()>0){ // show the movieList labels
-		var listItems = movie.getListItems();
-		for(var i=0, j=listItems.length;i<j;i++){
-			// append the movieList label
-			var list = listItems[i];
-			var settings = {
-					'class':'imcm_label', 
-					html: list.name,
-					href: '#'+list.id
-				};
-			if(CFG.labels.redirect){ // onclick redirect to movielist
-				settings.title = 'Go to the movielist: '+list.name;
-				settings.click = function(){
-					Notification.error('This is not yet working. Movielist id:'+list.id);	
-					//window.location='http://www.imdb.com/mymovies/list?l='+catid;
-				};
-			} else { // onclick, ask to remove from movielist
-				settings.title = 'Delete movie from list: '+list.name;
-				settings.click = function(){
-					if(!CFG.labels.confirmation || confirm('Delete movie from '+list.name+'?')){
-						Imdb.reqMovieAction(movie,list.id); 
-					}
-					return false;
-				};
-			}
-			$('<a />', settings).insertAfter(node);
-		}
-	} //end: add movieList label
-	// Add a vote to the node
-	if(CFG.vote && movie.hasVote()){
-		$('<span />').addClass('imcm_vote imcm_label imcm_'+movie.getVote())
-			.html(movie.getVote())
-			.insertAfter(node);
-	}
-	return true; // movie should be highlighted
-}
-
-/*
+/**
  * Update the status of the movie for all links referring to the specified movie.
+ * @param {Movie} movie The movie that has changed
  */
 function updateStatus(movie){
 	Log.f('init')('Updating all links and headers for movie: '+movie.getId());
-	$('.movie'+movie.getId()+'.label_node').each(function(){updateListLinks($(this),movie);});
-	$('.movie'+movie.getId()+'.imcm_menu').find('li').each(function(){
+	$('.movie'+movie.getId()).updateStatus(movie);
+}
+$.fn.updateStatus = function(movie){
+	console.log(this);
+	var $this = $(this),
+		config = getNodeConfig($this);
+	$this.filter('.imcm_labels_node')
+		.empty()
+		.append(createLabels(movie,config));
+	$this.filter('.imcm_vote_node')
+		.empty()
+		.append(createVoteElement(movie,config));
+	$this.filter('.label_node')
+		.toggleClass('imcm_highlight', movie.isActive())
+	$this.filter('.imcm_menu').find('li').each(function(){
 		$(this).toggleClass('checked', movie.inList($(this).attr('catid')));
 	});
+	return this;
 }
-
 /**
  * Imdb API object
  * This object is used for interaction with the Imdb website through AJAX
@@ -683,8 +680,7 @@ var Movies = $.extend(true, {}, StoredList,
 	    	return (id) ? this.get(id) : false; 
 	    },
 		getIdByAddress: function(address) {
-			//var id = address.match(/(?:(?:www|us|italian|uk)\.)?imdb.(?:com|de)(?:(?:\/title\/tt)|(?:\/Title\?))(\d+)\/(?:\w+\/?)?$/);
-			var id = address.match(/\/title\/tt(\d{6,7})\/$/i);
+			var id = address.match(/\/title\/tt(\d{6,7})\/?$/i);
 			return (id)?parseInt(id[1],10):false;
 		},
 	
@@ -924,7 +920,8 @@ var Page = {
 			if((id = Movies.getIdByAddress($this.attr('href'))) && id!=mov){
 				linkCount++;			
 				movie = Movies.get(id);
-				if(appendListLinks($this, movie)){activeLinks++;}
+				initMovieNode($this,movie);
+				if(movie.isActive()){activeLinks++;}
 				linkCount++;			
 			}
 		});
@@ -964,7 +961,7 @@ var Page = {
 				if($(this).hasClass('rating-pending')){ // a vote has been submitted, waiting for result
 					submitted=true;
 				} else if(submitted){ // node no longer marked as pending, but something was submitted
-					vote = (deleting)?0:$(this).prev().children().first().html();
+					var vote = (deleting)?0:$(this).prev().children().first().html();
 					submitted=deleting=false;
 					if(movie.getVote()!=vote){
 						movie.setVote(vote);
@@ -993,7 +990,7 @@ var Page = {
 				updateStatus(movie);
 			});
 			//End of Wlb listener
-			updateListLinks($('h1').first(), movie);
+			initMovieNode($('h1').first(), movie);
 			Log.f('init')('Adding list menu to the title page');
 
 			$('<div />').addClass('imcm_catlist aux-content-widget-2')
@@ -1008,7 +1005,7 @@ var Page = {
 	},
 	getMovie: function(){
 		return this.movie = this.movie || Movies.getByAddress(this.loc);
-	}
+	},
 };
 /**
  * Object that handles the Storage in localStorage
@@ -1071,6 +1068,10 @@ var Log = {
 		return (Config.debug.all && Config.debug.types[type]) ? console.info: Log.add;
 	}
 };
+/**
+ * Configuration object
+ * @class
+ */
 var Configuration = {
 	open: function(){
 		alert('The configurator is not yet implemented');
@@ -1085,6 +1086,7 @@ window.imdbmcm = {
 		n: Notification,
 		s: Storage,
 		log: Log.show,
+		$: $,
 };
 
 Page.init();
